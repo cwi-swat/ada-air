@@ -18,5 +18,6 @@ module lang::ada::AST
 import IO;
 
 void main() {
-    println("Hello!");
+    int a = 0;
+    println("Hello! <a>");
 }
