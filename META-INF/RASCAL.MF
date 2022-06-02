@@ -1,3 +1,3 @@
 Project-Name: ada-air
-Sources: src/main/rascal
+Source: src/main/rascal
 
