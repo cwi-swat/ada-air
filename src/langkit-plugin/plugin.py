@@ -28,7 +28,10 @@ class PluginPass(langkit.passes.AbstractPass):
         rascal_types = {}
         for n in context.entity_types:
             if n.is_root_type:
-                # skip Ada_Node root type, we will use "node" (the rascal type)
+                # skipping Ada_Node root type, we will use rascal node
+                continue
+            elif n.element_type.is_list_type or n.api_name.lower.lower() == "ada_list":
+                # skipping list types, we will use rascal list
                 continue
             else:
                 base = n.base.api_name
@@ -43,24 +46,23 @@ class PluginPass(langkit.passes.AbstractPass):
                     print(f"{base} not in rascal_types when processing {n.api_name}")
                     continue
 
-            if n.element_type.is_list_type:
-                # Adding a field "content" for list node
-                element_contained = n.element_type.element_type.entity
-                element_contained_type = "node" if element_contained.is_root_type else element_contained.api_name
-                rascal_types[n.api_name].append(f"list[{element_contained_type}] content")
-            else:
                 fields = n.element_type.get_parse_fields(include_inherited=True)
                 i = 0
                 for field in fields:
-                    field_type = field.type.entity if field.type.is_ast_node else field.type
-                    field_type_name = field.type.entity.api_name if field.type.is_ast_node else field.type.api_name
+                    assert field.type.is_ast_node
+                    field_type = field.type.entity
+                    field_type_name = field.type.entity.api_name
                     if field_type.is_root_type:
-                        field_type_name = "node"  # Rascal type
+                        field_type_name = "node"
+                    elif field_type.element_type.is_list_type:
+                        element_contained = field_type.element_type.element_type.entity
+                        element_contained_type = "node" if element_contained.is_root_type else element_contained.api_name
+                        field_type_name = f"list[{element_contained_type}]"
                     rascal_types[n.api_name].append(f"{field_type_name} {field.api_name}")
                     if i < len(fields) - 1:
                         rascal_types[n.api_name].append(", ")
                     i = i + 1
-            rascal_types[n.api_name].append(")")
+                rascal_types[n.api_name].append(")")
 
         print("""@license{
 Copyright (c) 2022, TNO (ESI) and NWO-I Centrum Wiskunde & Informatica (CWI)
