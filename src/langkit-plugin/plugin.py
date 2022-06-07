@@ -3,6 +3,15 @@ from langkit.compile_context import CompileCtx
 from langkit.compiled_types import SymbolType, CompiledType
 
 
+def is_boolean_type(t: CompiledType):
+    derived_type = t.derivations
+    return ((len(derived_type) == 2 and all(d.api_name.lower.lower().endswith("_absent") or
+                                          d.api_name.lower.lower().endswith("_present")
+                                          for d in derived_type))
+    or (t.api_name.lower.lower().endswith("_absent")
+    or t.api_name.lower.lower().endswith("_present")))
+
+
 class PluginPass(langkit.passes.AbstractPass):
 
     def __init__(self):
@@ -33,6 +42,9 @@ class PluginPass(langkit.passes.AbstractPass):
             elif n.element_type.is_list_type or n.api_name.lower.lower() == "ada_list":
                 # skipping list types, we will use rascal list
                 continue
+            elif is_boolean_type(n.element_type):
+                # skipping present and absent, we will use boolean
+                continue
             else:
                 base = n.base.api_name
                 if base in rascal_types:
@@ -58,12 +70,16 @@ class PluginPass(langkit.passes.AbstractPass):
                         element_contained = field_type.element_type.element_type.entity
                         element_contained_type = "node" if element_contained.is_root_type else element_contained.api_name
                         field_type_name = f"list[{element_contained_type}]"
+                    elif is_boolean_type(field_type.element_type):
+                        field_type_name = "bool"
+
                     rascal_types[n.api_name].append(f"{field_type_name} {field.api_name}")
                     if i < len(fields) - 1:
                         rascal_types[n.api_name].append(", ")
                     i = i + 1
                 rascal_types[n.api_name].append(")")
 
+        # TODO use mako templates
         print("""@license{
 Copyright (c) 2022, TNO (ESI) and NWO-I Centrum Wiskunde & Informatica (CWI)
 All rights reserved.
