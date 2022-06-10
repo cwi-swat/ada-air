@@ -40,7 +40,7 @@ class PluginPass(langkit.passes.AbstractPass):
         field_type_name = None
         inheritance_chain = t.element_type.get_inheritance_chain()
         if t.is_root_type:
-            field_type_name = None
+            field_type_name = "Ada_Node"
         elif any(node.api_name.lower.endswith("_decl") for node in inheritance_chain):
             field_type_name = "Decl"
         elif any(node.api_name.lower.endswith("_def") for node in inheritance_chain):
@@ -63,30 +63,14 @@ class PluginPass(langkit.passes.AbstractPass):
     @staticmethod
     def get_rascal_field_type_name(field_type: EntityType) -> str:
         field_type_name = None
-        inheritance_chain = field_type.element_type.get_inheritance_chain()
-        if field_type.is_root_type:
-            field_type_name = "Ada_Node"
-        elif any(node.api_name.lower.endswith("_decl") for node in inheritance_chain):
-            field_type_name = "Decl"
-        elif any(node.api_name.lower.endswith("_def") for node in inheritance_chain):
-            field_type_name = "Def"
-        elif any("_expr" in node.api_name.lower for node in inheritance_chain):
-            field_type_name = "Expr"
-        elif any("stmt" in node.api_name.lower for node in inheritance_chain):
-            field_type_name = "Stmt"
-        elif any("assoc" in node.api_name.lower for node in inheritance_chain):
-            field_type_name = "Assoc"
-        elif any(node.api_name.lower.endswith("_node") and not "ada_node" in node.api_name.lower for node in inheritance_chain):
-            field_type_name = "Keyword"
-        elif any(node.api_name.lower.endswith("_spec") for node in inheritance_chain):
-            field_type_name = "Spec"
-        elif field_type.element_type.is_list_type:
+        if field_type.element_type.is_list_type:
             element_contained = field_type.element_type.element_type.entity
             field_type_name = f"list[{PluginPass.get_rascal_field_type_name(element_contained)}]"
         elif is_boolean_node(field_type.element_type):
-            field_type_name = f"Maybe[{inheritance_chain[1].public_type.api_name.camel_with_underscores}]"
+            inheritance_chain = field_type.element_type.get_inheritance_chain()
+            field_type_name = f"Maybe[{PluginPass.get_associated_rascal_type(field_type)}]"
         else:
-            field_type_name = inheritance_chain[1].public_type.api_name.camel_with_underscores
+            field_type_name = PluginPass.get_associated_rascal_type(field_type)
         return field_type_name
 
     @staticmethod
