@@ -220,6 +220,7 @@ class PluginPass(langkit.passes.AbstractPass):
     def run(self, context: CompileCtx) -> None:
         # self.emit_dot_visualization(context)
         self.emit_rascal_data_types(context)
+        self.emit_exportation_function(context)
         return
 
     @staticmethod
@@ -281,3 +282,66 @@ import util::Maybe;
 alias Ada_Node = node;\n\n""")
         rascal_types.rename_fields_redeclaration()
         print(rascal_types)
+
+    @staticmethod
+    def emit_exportation_function(context: CompileCtx):
+        # TODO use a mako template
+        print("function Export_AST_To_Rascal (N : LAL.Ada_Node'Class; Indent : Natural := 0; Pretty_Print : Boolean := True; IsOptional : Boolean := False) return String is")
+        print("use Ada.Strings.Fixed;")
+        print("use Ada.Characters.Latin_1;")
+        print("Tab : constant String := (if Pretty_Print then \"|  \" else \"\");")
+        print("Prefix : constant String := (if Pretty_Print then LF & (Indent * Tab) else \"\");")
+        print("Just : constant String := (if IsOptional then \"just(\" else \"\");")
+        print("End_Just : constant String := (if IsOptional then \")\" else \"\");")
+        print("begin")
+        print("if N.Is_Null then")
+        print("return Prefix & \"nothing()\";") # always Maybe
+        print("end if;")
+        print("case N.Kind is")
+        for n in context.astnode_types:
+            if n.abstract:
+                continue
+            else:
+                print(f"when LALCO.{n.ada_kind_name} =>")
+                print("-- Langkit_Support.Slocs.Image (N.Sloc_Range);")
+
+                if n.is_list_type or n.public_type.api_name.lower == "ada_list":
+                    # use rascal list
+                    print("declare")
+                    print("use Ada.Strings.Unbounded;")
+                    print("s : Unbounded_String := To_Unbounded_String (Prefix & Just & \"[\");")
+                    print("IsEmpty : Boolean := True;")
+                    print("begin")
+                    print(f"for node of N.As_{n.public_type.api_name.camel_with_underscores} loop")
+                    print("Append (s, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False) & \",\");") # no list of maybe
+                    print("IsEmpty := False;")
+                    print("end loop;")
+                    print("if not IsEmpty then")
+                    print("Replace_Element (s, Length(s), ' ');")
+                    print("end if;")
+                    print("Append (s, Prefix & \"]\" & End_Just);")
+                    print("return To_String (s);")
+                    print("end;")
+
+                elif n.public_type.api_name.lower.endswith("_absent"):
+                    print("return Prefix & \"nothing()\";")  # always Maybe
+
+                elif n.public_type.api_name.lower.endswith("_present"):
+                    print(f"return Prefix & \"just({n.base.public_type.api_name.lower}())\";") # always Maybe
+
+                else:
+                    print(f"return Prefix & Just & \"{n.public_type.api_name.lower} (\" &", end="")
+                    if n.is_token_node:
+                        print(f"Prefix & Tab & \"\"\"\" & Langkit_Support.Text.Image (N.Text) & \"\"\"\" & ", end ="")
+                        if len(n.get_parse_fields(include_inherited=True)) != 0:
+                            print("\", \" &")
+                    i = 1
+                    for field in n.get_parse_fields(include_inherited=True):
+                        print(f"Export_AST_To_Rascal (N.As_{n.public_type.api_name.camel_with_underscores}.{field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, {field.is_optional}) & ",end ="")
+                        if i != len(n.get_parse_fields(include_inherited=True)):
+                            print("\", \" & ", end="")
+                        i = i + 1
+                    print("Prefix & \")\" & End_Just;")
+
+        print("end case;")
+        print("end Export_AST_To_Rascal;")
