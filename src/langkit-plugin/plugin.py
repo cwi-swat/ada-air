@@ -2,17 +2,7 @@ from collections import OrderedDict
 
 import langkit.passes
 from langkit.compile_context import CompileCtx
-from langkit.compiled_types import CompiledType, EntityType, Field
-
-
-def is_boolean_node(t: CompiledType) -> bool:
-    derived_types = t.derivations
-    return len(derived_types) == 2 and all(is_absent_or_present_node(d) for d in derived_types)
-
-
-def is_absent_or_present_node(t: CompiledType) -> bool:
-    return (t.api_name.lower.endswith("_absent")
-            or t.api_name.lower.endswith("_present"))
+from langkit.compiled_types import CompiledType, EntityType, Field, ASTNodeType
 
 
 class RascalConstructor:
@@ -29,18 +19,18 @@ class RascalConstructor:
 
     @staticmethod
     def __get_rascal_field_type_name(field: Field) -> str:
-        field_type = field.type.entity
+        field_type = field.type.entity.astnode
         field_type_name = None
-        if field_type.element_type.is_list_type:
-            element_contained = field_type.element_type.element_type.entity
+        if field_type.is_list:
+            element_contained = field_type.element_type
             field_type_name = f"list[{RascalDataTypes.get_associated_rascal_type(element_contained)}]"
-        elif is_boolean_node(field_type.element_type):
-            inheritance_chain = field_type.element_type.get_inheritance_chain()
+        elif field_type.is_bool_node:
+            inheritance_chain = field_type.get_inheritance_chain()
             field_type_name = f"Maybe[{RascalDataTypes.get_associated_rascal_type(field_type)}]"
         else:
             field_type_name = RascalDataTypes.get_associated_rascal_type(field_type)
 
-        if field.is_optional and not is_boolean_node(field_type.element_type):
+        if field.is_optional and not field_type.is_bool_node:
             field_type_name = "Maybe[" + field_type_name + "]" # optional fields can be null
 
         return field_type_name
@@ -79,10 +69,10 @@ class RascalDataTypes:
         self._types[type_name].append(constructor)
 
     @staticmethod
-    def get_associated_rascal_type(t: EntityType) -> str:
+    def get_associated_rascal_type(t: ASTNodeType) -> str:
         field_type_name = None
-        inheritance_chain = t.element_type.get_inheritance_chain()
-        if t.is_root_type:
+        inheritance_chain = t.get_inheritance_chain()
+        if t.is_root_node:
             field_type_name = "Ada_Node"
         elif any(node.api_name.lower.endswith("_decl") for node in inheritance_chain):
             field_type_name = "Decl"
@@ -236,22 +226,22 @@ class PluginPass(langkit.passes.AbstractPass):
     @staticmethod
     def emit_rascal_data_types(context: CompileCtx) -> None:
         rascal_types = RascalDataTypes()
-        for n in context.entity_types:
-            if n.is_root_type:
+        for n in context.astnode_types:
+            if n.is_root_node:
                 # skipping Ada_Node, we will use rascal node
                 continue
-            elif n.element_type.is_list_type or n.api_name.lower == "ada_list":
+            elif n.is_list or n.is_root_list_type:
                 # skipping List nodes, we will use rascal list
                 continue
-            elif is_absent_or_present_node(n.element_type):
+            elif n.base.is_bool_node:
                 # skipping Present and Absent nodes, we will use their base node with "Maybe"
                 continue
-            elif n.astnode.abstract and not is_boolean_node(n.element_type):
+            elif n.abstract and not n.is_bool_node:
                 continue
 
-            fields = n.element_type.get_parse_fields(include_inherited=True)
-            constructor = RascalConstructor(n.api_name.lower)
-            if n.element_type.is_token_node:
+            fields = n.get_parse_fields(include_inherited=True)
+            constructor = RascalConstructor(n.public_type.api_name.lower)
+            if n.is_token_node:
                 constructor.add_token_field()
             for field in fields:
                 assert field.type.is_ast_node
@@ -318,8 +308,10 @@ alias Ada_Node = node;\n\n""")
                     print("end loop;")
                     print("if not IsEmpty then")
                     print("Replace_Element (s, Length(s), ' ');")
-                    print("end if;")
                     print("Append (s, Prefix & \"]\" & End_Just);")
+                    print("else")
+                    print("Append (s, \"]\" & End_Just);")
+                    print("end if;")
                     print("return To_String (s);")
                     print("end;")
 
