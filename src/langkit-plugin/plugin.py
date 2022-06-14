@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 import langkit.passes
 from langkit.compile_context import CompileCtx
-from langkit.compiled_types import SymbolType, CompiledType, EntityType
+from langkit.compiled_types import CompiledType, EntityType, Field
 
 
 def is_boolean_node(t: CompiledType) -> bool:
@@ -21,33 +21,43 @@ class RascalConstructor:
         self._name = type_name
         self._fields = OrderedDict({})  # {Key : field name, Value : field type name}
 
-    def add_field(self, field: EntityType):
-        self._fields[field.api_name.camel_with_underscores] = self.__get_rascal_field_type_name(field.type.entity)
+    def add_field(self, field: Field):
+        self._fields[field.api_name.camel_with_underscores] = self.__get_rascal_field_type_name(field)
+
+    def add_token_field(self):
+        self._fields["content"] = "str"
 
     @staticmethod
-    def __get_rascal_field_type_name(field_type: EntityType) -> str:
+    def __get_rascal_field_type_name(field: Field) -> str:
+        field_type = field.type.entity
         field_type_name = None
         if field_type.element_type.is_list_type:
             element_contained = field_type.element_type.element_type.entity
-            field_type_name = f"list[{RascalConstructor.__get_rascal_field_type_name(element_contained)}]"
+            field_type_name = f"list[{RascalDataTypes.get_associated_rascal_type(element_contained)}]"
         elif is_boolean_node(field_type.element_type):
             inheritance_chain = field_type.element_type.get_inheritance_chain()
             field_type_name = f"Maybe[{RascalDataTypes.get_associated_rascal_type(field_type)}]"
         else:
             field_type_name = RascalDataTypes.get_associated_rascal_type(field_type)
+
+        if field.is_optional and not is_boolean_node(field_type.element_type):
+            field_type_name = "Maybe[" + field_type_name + "]" # optional fields can be null
+
         return field_type_name
 
     def get_fields(self) -> OrderedDict[str, str]:
         return self._fields.copy()
 
-    def apply_renaming_rules(self, rules: dict[str, tuple[str, str]]):
+    def apply_renaming_rules(self, renaming_rules: dict[str, [tuple[str, str]]]):
         for field_name, field_type in self._fields.copy().items():
-            for field_to_change, rule in rules.items():
-                # rule[0] type name
-                # rule[1] new field name
-                if field_name == field_to_change and rule[0] == field_type:
-                    del self._fields[field_name]
-                    self._fields[rule[1]] = field_type
+            for field_to_change, rules in renaming_rules.items():
+                for rule in rules:
+                    # rule[0] type name
+                    # rule[1] new field name
+                    if field_name == field_to_change and rule[0] == field_type:
+                        del self._fields[field_name]
+                        self._fields[rule[1]] = field_type
+                        break
 
     def __str__(self) -> str:
         f = []
@@ -97,35 +107,34 @@ class RascalDataTypes:
     def __compute_suffix(name: str) -> str:
         underscore = name.rfind("_")
         suffix = name
-        list_type = "list["
-        maybe_type = "maybe["
+        last_open_bracket = name.rfind("[")
+        first_close_bracket = name.find("]")
 
-        if name.lower().startswith(list_type):
-            suffix = name[len(list_type): len(name) - 1]
-        elif name.lower().startswith(maybe_type):
-            suffix = name[len(maybe_type): len(name) - 1]
+        if last_open_bracket != -1 and first_close_bracket != -1:
+            suffix = name[last_open_bracket + 1: first_close_bracket]
 
         if underscore != -1:
             suffix = suffix[underscore + 1: len(suffix)]
         return suffix
 
     @staticmethod
-    def __compute_renaming_rules(redeclarations: dict) -> dict[str, tuple[str, str]]:
-        renaming_rules = {}  # {key: field name, value: (old type name, new field name)}
+    def __compute_renaming_rules(redeclarations: dict) -> dict[str, [tuple[str, str]]]:
+        renaming_rules = {}  # {key: field name, value: list of (old type name, new field name)}
         for field_name, types in redeclarations.items():
+            # TODO remove this condition?
             if len(types) == 2:
                 is_type_name_in_field_name = any(t in field_name for t in types)
                 is_ada_node = any("Ada_Node" in t for t in types)
 
                 if is_ada_node and is_type_name_in_field_name:
                     old = [t for t in types if "Ada_Node" in t]
-                    renaming_rules[field_name] = (old[0], field_name + "_Node")
+                    renaming_rules[field_name] = [(old[0], field_name + "_Node")]
 
                 elif is_ada_node:
                     old = [t for t in types if "Ada_Node" not in t]
                     old_name = old[0]
                     suffix = RascalDataTypes.__compute_suffix(old_name)
-                    renaming_rules[field_name] = (old_name, field_name + "_" + suffix)
+                    renaming_rules[field_name] = [(old_name, field_name + "_" + suffix)]
 
                 else:
                     len_min = 999
@@ -135,11 +144,41 @@ class RascalDataTypes:
                             len_min = len(t)
                             min_name = t
                     suffix = RascalDataTypes.__compute_suffix(min_name)
-                    renaming_rules[field_name] = (min_name, field_name + "_" + suffix)
+                    renaming_rules[field_name] = [(min_name, field_name + "_" + suffix)]
 
             else:
-                # TODO handle more than 2 collisions
-                raise RuntimeError('Not implemented')
+                priority = dict({}) # {key: type name, value: priority (int 1-5)}
+                # 1 (Low priority) : X F_X. e.g. Stmt F_Stmt
+                # 2 : Ada_Node
+                # 3 : others
+                # 4 : Short name without underscore
+                # 5 : Optional field e.g. Maybe[..]
+                for t in types:
+                    if t.startswith("Maybe["):
+                        priority[t] = 5
+                    elif t in field_name:
+                        priority[t] = 1
+                    elif t.find("_") == -1:
+                        priority[t] = 4
+                    elif "Ada_Node" in t:
+                        priority[t] = 2
+                    else:
+                        priority[t] = 3
+                priority_list = sorted(priority.items(), key=lambda x: x[1], reverse=True)
+                sorted_priority = {k: v for k, v in priority_list}
+                min_nb_renaming_needed = len(types) - 1
+                nb_renaming = 0
+                renaming_rules[field_name] = []
+                for type_name, prio in sorted_priority.items():
+                    if prio == 5:
+                        renaming_rules[field_name].append((type_name, field_name + "_Maybe"))
+                    elif prio == 2:
+                        renaming_rules[field_name].append((type_name, field_name + "_Node"))
+                    else:
+                        renaming_rules[field_name].append((type_name, field_name + "_" + RascalDataTypes.__compute_suffix(type_name)))
+                    nb_renaming = nb_renaming + 1
+                    if nb_renaming == min_nb_renaming_needed:
+                        break
 
         return renaming_rules
 
@@ -147,7 +186,7 @@ class RascalDataTypes:
         # Postprocessing the fields name to rename redeclared fields
         # More information at : https://tutor.rascal-mpl.org/Errors/Static/RedeclaredField/RedeclaredField.html
         for constructors in self._types.values():
-            redeclarations = dict({})  # {Key : field name, values : set of types}
+            redeclarations = dict({})  # {Key : field name, values : set of types name}
             for constructor in constructors:
                 for field_name, field_type in constructor.get_fields().items():
                     if field_name not in redeclarations:
@@ -211,6 +250,8 @@ class PluginPass(langkit.passes.AbstractPass):
 
             fields = n.element_type.get_parse_fields(include_inherited=True)
             constructor = RascalConstructor(n.api_name.lower)
+            if n.element_type.is_token_node:
+                constructor.add_token_field()
             for field in fields:
                 assert field.type.is_ast_node
                 constructor.add_field(field)
