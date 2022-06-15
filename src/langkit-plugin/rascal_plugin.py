@@ -19,6 +19,9 @@ class RascalConstructor:
     def add_token_field(self):
         self._fields["content"] = "str"
 
+    def add_custom_field(self, field_type:str, field_name:str):
+        self._fields[field_name] = field_type
+
     @staticmethod
     def __get_rascal_field_type_name(field: Field) -> str:
         field_type = field.type.entity.astnode
@@ -199,6 +202,7 @@ class RascalDataTypes:
 class RascalPass(langkit.passes.AbstractPass):
 
     templates_dir = os.path.dirname(__file__) + "/templates/"
+    inlined_nodes = ["bin_op", "un_op", "relation_op", "membership_expr"]
 
     def __init__(self):
         super().__init__("rascal plugin pass")
@@ -234,15 +238,36 @@ class RascalPass(langkit.passes.AbstractPass):
                 continue
             elif n.abstract and not n.is_bool_node:
                 continue
+            elif any(n.public_type.api_name.lower == name for name in RascalPass.inlined_nodes):
+                # inlining these nodes
+                continue
+            elif n.base.public_type.api_name.lower == "op":
+                full_name = n.public_type.api_name.lower
+                underscore = full_name.find("_")
+                name = "\\" + full_name[underscore + 1: len(full_name)]
+                constructor = RascalConstructor(name)
+                constructor.add_custom_field("Expr","F_Left")
+                constructor.add_custom_field("Expr", "F_Right")
+                rascal_types.add_constructor(n, constructor)
 
-            fields = n.get_parse_fields(include_inherited=True)
-            constructor = RascalConstructor(n.public_type.api_name.lower)
-            if n.is_token_node:
-                constructor.add_token_field()
-            for field in fields:
-                assert field.type.is_ast_node
-                constructor.add_field(field)
-            rascal_types.add_constructor(n, constructor)
+                constructor = RascalConstructor(name)
+                constructor.add_custom_field("Expr","F_Expr")
+                rascal_types.add_constructor(n, constructor)
+
+                constructor = RascalConstructor(name)
+                constructor.add_custom_field("Expr","F_Expr")
+                constructor.add_custom_field("list[Expr]", "F_Membership_Exprs")
+                rascal_types.add_constructor(n, constructor)
+
+            else:
+                fields = n.get_parse_fields(include_inherited=True)
+                constructor = RascalConstructor(n.public_type.api_name.lower)
+                if n.is_token_node:
+                    constructor.add_token_field()
+                for field in fields:
+                    assert field.type.is_ast_node
+                    constructor.add_field(field)
+                rascal_types.add_constructor(n, constructor)
 
         rascal_types.rename_fields_redeclaration()
 
@@ -258,4 +283,4 @@ class RascalPass(langkit.passes.AbstractPass):
             os.mkdir(output_dir)
         tmp = Template(filename=RascalPass.templates_dir + "ada_main.mako")
         with open(output_dir + 'main.adb', 'w') as f:
-            f.write(tmp.render(ctx=context))
+            f.write(tmp.render(ctx=context, inlined = RascalPass.inlined_nodes))

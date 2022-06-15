@@ -8,6 +8,7 @@ with Ada.Strings.Unbounded;
 with Ada.Strings.Fixed;
 with Ada.Characters.Latin_1;
 with GNATCOLL.Utils;
+with GNAT.Strings;
 
 procedure Main is
     package LAL renames Libadalang.Analysis;
@@ -29,6 +30,20 @@ procedure Main is
     end To_Rascal_Sloc_Range;
 
     function Escape_Quotes (S : String) return String is (GNATCOLL.Utils.Replace (s, """", "\"""));
+
+       function Lower_Name_With_Underscore(S : String) return String is
+      use Ada.Strings.Unbounded;
+      use Ada.Characters.Handling;
+      Unb : Unbounded_String := To_Unbounded_String ("" & To_Lower(S(S'First)));
+   begin
+      for i in S'First+1..S'Last loop
+         if Is_Upper (S(i)) then
+            Append (Unb, "_");
+         end if;
+         Append (Unb, To_Lower (S(i)));
+      end loop;
+      return To_String(Unb);
+   end Lower_Name_With_Underscore;
    
     function Export_AST_To_Rascal (N : LAL.Ada_Node'Class; Indent : Natural := 0; Pretty_Print : Boolean := True; IsOptional : Boolean := False) return String is
         use Ada.Strings.Fixed;
@@ -69,6 +84,26 @@ procedure Main is
 
                 % elif n.public_type.api_name.lower.endswith("_present"):
             return Prefix & "just(${n.base.public_type.api_name.lower}(" & src & "))"; -- # always Maybe
+
+                % elif any(n.public_type.api_name.lower == name for name in inlined):
+               declare
+                    op_full_name  : constant String := N.As_${n.public_type.api_name.camel_with_underscores}.F_Op.Kind_Name;
+                    op_name       : constant String := Lower_Name_With_Underscore (op_full_name(3..op_full_name'Last));
+               begin
+                    return Prefix & Just & op_name & "(" &\
+                    <%
+                    i = 0
+                    %>
+                     % for field in n.get_parse_fields(include_inherited=True):
+                        % if i != 1:
+                   Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}) & ", " &
+                        <%
+                        i = i + 1
+                        %>
+                        % endif
+                     % endfor
+                     Prefix & src & ")" & End_Just;
+               end;
 
                 % else:
             return Prefix & Just & "${n.public_type.api_name.lower} (" &
