@@ -1,8 +1,10 @@
+import os
 from collections import OrderedDict
 
 import langkit.passes
 from langkit.compile_context import CompileCtx
 from langkit.compiled_types import CompiledType, EntityType, Field, ASTNodeType
+from mako.template import Template
 
 
 class RascalConstructor:
@@ -38,6 +40,9 @@ class RascalConstructor:
     def get_fields(self) -> OrderedDict[str, str]:
         return self._fields.copy()
 
+    def get_name(self) -> str:
+        return self._name
+
     def apply_renaming_rules(self, renaming_rules: dict[str, [tuple[str, str]]]):
         for field_name, field_type in self._fields.copy().items():
             for field_to_change, rules in renaming_rules.items():
@@ -48,13 +53,6 @@ class RascalConstructor:
                         del self._fields[field_name]
                         self._fields[rule[1]] = field_type
                         break
-
-    def __str__(self) -> str:
-        f = []
-        # insertion order since we are using an OrderedDict
-        for k, v in self._fields.items():
-            f.append(f"{v} {k}")
-        return f"{self._name} ({', '.join(f) if len(f) > 0 else ''})"
 
 
 class RascalDataTypes:
@@ -67,6 +65,9 @@ class RascalDataTypes:
         if type_name not in self._types:
             self._types[type_name] = []
         self._types[type_name].append(constructor)
+
+    def get_types(self) -> dict:
+        return self._types.copy()
 
     @staticmethod
     def get_associated_rascal_type(t: ASTNodeType) -> str:
@@ -194,21 +195,16 @@ class RascalDataTypes:
                 for constructor in constructors:
                     constructor.apply_renaming_rules(rules)
 
-    def __str__(self):
-        s = []
-        for type_name, constructors in self._types.items():
-            s.append(f"data {type_name}(loc src=|unknown:///|) = ")
-            s.append('\n| '.join(str(c) for c in constructors) + ";\n\n")
-        return ''.join(s)
 
+class RascalPass(langkit.passes.AbstractPass):
 
-class PluginPass(langkit.passes.AbstractPass):
+    templates_dir = os.path.dirname(__file__) + "/templates/"
 
     def __init__(self):
         super().__init__("rascal plugin pass")
 
+
     def run(self, context: CompileCtx) -> None:
-        # self.emit_dot_visualization(context)
         self.emit_rascal_data_types(context)
         self.emit_exportation_function(context)
         return
@@ -248,92 +244,18 @@ class PluginPass(langkit.passes.AbstractPass):
                 constructor.add_field(field)
             rascal_types.add_constructor(n, constructor)
 
-        # TODO use mako templates
-        print("""@license{
-Copyright (c) 2022, TNO (ESI) and NWO-I Centrum Wiskunde & Informatica (CWI)
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-}
-@author{Jurgen J. Vinju - Centrum Wiskunde & Informatica}
-@author{Damien De Campos - TNO ESI}
-@author{Pierre van de Laar - TNO ESI}
-module lang::ada::AST
-
-import IO;
-import List;
-import util::Maybe;
-alias Ada_Node = node;\n\n""")
         rascal_types.rename_fields_redeclaration()
-        print(rascal_types)
+
+        output_dir = os.path.dirname(__file__) + "/../main/rascal/lang/ada/"
+        tmp = Template(filename=RascalPass.templates_dir + "rascal_ast.mako")
+        with open(output_dir + 'AST.rsc', 'w') as f:
+            f.write(tmp.render(types=rascal_types))
 
     @staticmethod
     def emit_exportation_function(context: CompileCtx):
-        # TODO use a mako template
-        print("function Export_AST_To_Rascal (N : LAL.Ada_Node'Class; Indent : Natural := 0; Pretty_Print : Boolean := True; IsOptional : Boolean := False) return String is")
-        print("use Ada.Strings.Fixed;")
-        print("use Ada.Characters.Latin_1;")
-        print("Tab : constant String := (if Pretty_Print then \"|  \" else \"\");")
-        print("Prefix : constant String := (if Pretty_Print then LF & (Indent * Tab) else \"\");")
-        print("Just : constant String := (if IsOptional then \"just(\" else \"\");")
-        print("End_Just : constant String := (if IsOptional then \")\" else \"\");")
-        print("begin")
-        print("if N.Is_Null then")
-        print("return Prefix & \"nothing()\";") # always Maybe
-        print("end if;")
-        print("case N.Kind is")
-        for n in context.astnode_types:
-            if n.abstract:
-                continue
-            else:
-                print(f"when LALCO.{n.ada_kind_name} =>")
-                print("-- Langkit_Support.Slocs.Image (N.Sloc_Range);")
-
-                if n.is_list_type or n.public_type.api_name.lower == "ada_list":
-                    # use rascal list
-                    print("declare")
-                    print("use Ada.Strings.Unbounded;")
-                    print("s : Unbounded_String := To_Unbounded_String (Prefix & Just & \"[\");")
-                    print("IsEmpty : Boolean := True;")
-                    print("begin")
-                    print(f"for node of N.As_{n.public_type.api_name.camel_with_underscores} loop")
-                    print("Append (s, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False) & \",\");") # no list of maybe
-                    print("IsEmpty := False;")
-                    print("end loop;")
-                    print("if not IsEmpty then")
-                    print("Replace_Element (s, Length(s), ' ');")
-                    print("Append (s, Prefix & \"]\" & End_Just);")
-                    print("else")
-                    print("Append (s, \"]\" & End_Just);")
-                    print("end if;")
-                    print("return To_String (s);")
-                    print("end;")
-
-                elif n.public_type.api_name.lower.endswith("_absent"):
-                    print("return Prefix & \"nothing()\";")  # always Maybe
-
-                elif n.public_type.api_name.lower.endswith("_present"):
-                    print(f"return Prefix & \"just({n.base.public_type.api_name.lower}())\";") # always Maybe
-
-                else:
-                    print(f"return Prefix & Just & \"{n.public_type.api_name.lower} (\" &", end="")
-                    if n.is_token_node:
-                        print(f"Prefix & Tab & \"\"\"\" & Langkit_Support.Text.Image (N.Text) & \"\"\"\" & ", end ="")
-                        if len(n.get_parse_fields(include_inherited=True)) != 0:
-                            print("\", \" &")
-                    i = 1
-                    for field in n.get_parse_fields(include_inherited=True):
-                        print(f"Export_AST_To_Rascal (N.As_{n.public_type.api_name.camel_with_underscores}.{field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, {field.is_optional}) & ",end ="")
-                        if i != len(n.get_parse_fields(include_inherited=True)):
-                            print("\", \" & ", end="")
-                        i = i + 1
-                    print("Prefix & \")\" & End_Just;")
-
-        print("end case;")
-        print("end Export_AST_To_Rascal;")
+        output_dir = os.path.dirname(__file__) + "/../main/ada/src/"
+        if not os.path.isdir(output_dir):
+            os.mkdir(output_dir)
+        tmp = Template(filename=RascalPass.templates_dir + "ada_main.mako")
+        with open(output_dir + 'main.adb', 'w') as f:
+            f.write(tmp.render(ctx=context))

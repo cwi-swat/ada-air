@@ -1,6 +1,6 @@
 @license{
-Copyright (c) 2022, TNO (ESI) and NWO-I Centrum Wiskunde & Informatica (CWI) 
-All rights reserved. 
+Copyright (c) 2022, TNO (ESI) and NWO-I Centrum Wiskunde & Informatica (CWI)
+All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
@@ -16,8 +16,28 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 module lang::ada::AST
 
 import IO;
+import List;
+import util::Maybe;
+alias Ada_Node = node;
 
-void main() {
-    int a = 0;
-    println("Hello! <a>");
-}
+    % for type_name, constructors in types.get_types().items():
+data ${type_name}(loc src=|unknown:///|) =\
+<%
+         vertical_bar = " "
+%>\
+        % for constructor in constructors:
+${vertical_bar}${constructor.get_name()} (\
+<%
+             vertical_bar = "| "
+             comma = ""
+%>\
+            % for field_name, field_type in constructor.get_fields().items():
+${comma}${field_type} ${field_name}\
+<%
+                  comma = ", "
+%>\
+             % endfor
+)
+          % endfor
+;
+     % endfor
