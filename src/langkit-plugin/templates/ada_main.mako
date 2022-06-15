@@ -68,7 +68,7 @@ procedure Main is
             return Prefix & "nothing()";  -- always Maybe
 
                 % elif n.public_type.api_name.lower.endswith("_present"):
-            return Prefix & "just(${n.base.public_type.api_name.lower}(src))"; -- # always Maybe
+            return Prefix & "just(${n.base.public_type.api_name.lower}(" & src & "))"; -- # always Maybe
 
                 % else:
             return Prefix & Just & "${n.public_type.api_name.lower} (" &
