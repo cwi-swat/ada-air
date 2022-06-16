@@ -209,6 +209,8 @@ class RascalPass(langkit.passes.AbstractPass):
 
 
     def run(self, context: CompileCtx) -> None:
+        if context.verbosity.info:
+            print("Generate rascal sources...")
         self.emit_rascal_data_types(context)
         self.emit_exportation_function(context)
         return
@@ -244,6 +246,7 @@ class RascalPass(langkit.passes.AbstractPass):
             elif n.base.public_type.api_name.lower == "op":
                 full_name = n.public_type.api_name.lower
                 underscore = full_name.find("_")
+                # escaping some names that are rascal keyword : mod, in etc...
                 name = "\\" + full_name[underscore + 1: len(full_name)]
                 constructor = RascalConstructor(name)
                 constructor.add_custom_field("Expr","F_Left")
