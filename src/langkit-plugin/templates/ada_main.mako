@@ -9,6 +9,7 @@ with Ada.Strings.Fixed;
 with Ada.Characters.Latin_1;
 with GNATCOLL.Utils;
 with GNAT.Strings;
+with Ada.Characters.Handling;
 
 procedure Main is
     package LAL renames Libadalang.Analysis;
