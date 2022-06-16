@@ -19,16 +19,16 @@ module lang::ada::ImportAST
 import lang::ada::AST;
 import ValueIO;
 import util::ShellExec;
-import String;
 
 Ada_Node importAdaAST(loc file) {
-    loc gprbuild = |file:///C:/GNATPRO/22.1/bin/gprbuild.exe|;
-    loc exe = |file:///C:/Users/camposdd/Documents/ada-air/src/main/ada/obj/main.exe|;
-    loc out = |file:///C:/Users/camposdd/Documents/ada-air/src/main/rascal_out.txt|;
+    // Current dir must be ada-air/src/main/rascal/lang/ada
+    loc gprfile = |cwd:///| + "../../../ada/lal_to_rascal.gpr";
+    loc exe = |cwd:///| + "../../../ada/obj/main.exe";
+    loc out = |cwd:///| + "../../../out.txt";
 
-    // Work-around : on Windows .path add a '/' before C:/... hence the substring 
-    exec(substring(gprbuild.path, 1), args=["-p", "C:/Users/camposdd/Documents/ada-air/src/main/ada/lal_to_rascal.gpr"]);
-    exec(substring(exe.path, 1), args=[substring(file.path,1), substring(out.path,1)]);
-
+    // work-around: [1..] skip the first slash added by .path
+    // "/../../../out.txt" -> "../../../out.txt"
+    exec("gprbuild", args=["-p", gprfile.path[1..]]);
+    exec(exe.path[1..], args=[file.path, out.path[1..]]);
     return readTextValueFile(#Compilation_Unit, out);
 }
