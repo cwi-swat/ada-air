@@ -20,7 +20,7 @@ import lang::ada::AST;
 import ValueIO;
 import util::ShellExec;
 
-Ada_Node importAdaAST(loc file) {
+Compilation_Unit importAdaAST(loc file) {
     // Current dir must be ada-air/src/main/rascal/lang/ada
     loc gprfile = |cwd:///| + "../../../ada/lal_to_rascal.gpr";
     loc exe = |cwd:///| + "../../../ada/obj/main.exe";
@@ -28,7 +28,20 @@ Ada_Node importAdaAST(loc file) {
 
     // work-around: [1..] skip the first slash added by .path
     // "/../../../out.txt" -> "../../../out.txt"
+    // https://github.com/usethesource/rascal/issues/1613
     exec("gprbuild", args=["-p", gprfile.path[1..]]);
     exec(exe.path[1..], args=[file.path, out.path[1..]]);
+    return readTextValueFile(#Compilation_Unit, out);
+}
+
+Compilation_Unit importAdaAST(loc file, loc ada_air) {
+    // On Windows : the 2 locations must be absolute paths witouht drive name
+    // https://github.com/usethesource/rascal/issues/1613
+    loc gprfile = ada_air + "src/main/ada/lal_to_rascal.gpr";
+    loc exe = ada_air + "src/main//ada/obj/main.exe";
+    loc out = ada_air + "src/main/out.txt";
+
+    exec("gprbuild", args=["-p", gprfile.path]);
+    exec(exe.path, args=[file.path, out.path]);
     return readTextValueFile(#Compilation_Unit, out);
 }
