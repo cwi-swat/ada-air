@@ -217,16 +217,6 @@ class RascalPass(langkit.passes.AbstractPass):
         return
 
     @staticmethod
-    def emit_dot_visualization(context: CompileCtx) -> None:
-        print("digraph D {")
-        for n in context.entity_types:
-            if n.base is not None:
-                child = n.api_name
-                parent = n.base.api_name
-                print("\"{0}\" -> \"{1}\"".format(parent, child))
-        print("}")
-
-    @staticmethod
     def emit_rascal_data_types(context: CompileCtx) -> None:
         rascal_types = RascalDataTypes()
         for n in context.astnode_types:
@@ -288,3 +278,23 @@ class RascalPass(langkit.passes.AbstractPass):
         tmp = Template(filename=RascalPass.templates_dir + "ada_main.mako")
         with open(output_dir + 'main.adb', 'w') as f:
             f.write(tmp.render(ctx=context, inlined = RascalPass.inlined_nodes))
+
+
+class DotPass(langkit.passes.AbstractPass):
+
+    def __init__(self):
+        super().__init__("dot plugin pass")
+
+    def run(self, context: CompileCtx) -> None:
+        DotPass.emit_dot_visualization(context)
+
+    @staticmethod
+    def emit_dot_visualization(context: CompileCtx) -> None:
+        with open('lkt_dot.txt', 'w') as f:
+            f.write("digraph D {\n")
+            for n in context.entity_types:
+                if n.base is not None:
+                    child = n.api_name.lower
+                    parent = n.base.api_name.lower
+                    f.write("\"{0}\" -> \"{1}\"\n".format(parent, child))
+            f.write("}\n")
