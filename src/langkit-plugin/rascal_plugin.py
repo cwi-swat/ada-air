@@ -53,8 +53,9 @@ class RascalConstructor:
                     # rule[0] type name
                     # rule[1] new field name
                     if field_name == field_to_change and rule[0] == field_type:
-                        del self._fields[field_name]
-                        self._fields[rule[1]] = field_type
+                        # we rebuild a new instance of _fields because we need to preserve the insertion order
+                        tmp = OrderedDict([(rule[1], field_type) if k == field_name else (k, v) for k, v in self._fields.items()])
+                        self._fields = tmp
                         break
 
 
