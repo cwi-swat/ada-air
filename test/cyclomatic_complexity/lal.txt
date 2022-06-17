@@ -1,0 +1,175 @@
+CompilationUnit[1:1-19:10]
+|f_prelude:
+|  AdaNodeList[1:1-1:1]: <empty list>
+|f_body:
+|  LibraryItem[1:1-19:10]
+|  |f_has_private:
+|  |  PrivateAbsent[1:1-1:1]
+|  |f_item:
+|  |  PackageBody[1:1-19:10]
+|  |  |f_package_name:
+|  |  |  DefiningName[1:14-1:18]
+|  |  |  |f_name:
+|  |  |  |  Id[1:14-1:18]: test
+|  |  |f_aspects: <null>
+|  |  |f_decls:
+|  |  |  DeclarativePart[1:21-19:1]
+|  |  |  |f_decls:
+|  |  |  |  AdaNodeList[3:5-17:13]
+|  |  |  |  |  SubpBody[3:5-17:13]
+|  |  |  |  |  |f_overriding:
+|  |  |  |  |  |  OverridingUnspecified[1:21-1:21]
+|  |  |  |  |  |f_subp_spec:
+|  |  |  |  |  |  SubpSpec[3:5-3:46]
+|  |  |  |  |  |  |f_subp_kind:
+|  |  |  |  |  |  |  SubpKindFunction[3:5-3:13]
+|  |  |  |  |  |  |f_subp_name:
+|  |  |  |  |  |  |  DefiningName[3:14-3:17]
+|  |  |  |  |  |  |  |f_name:
+|  |  |  |  |  |  |  |  Id[3:14-3:17]: fac
+|  |  |  |  |  |  |f_subp_params:
+|  |  |  |  |  |  |  Params[3:17-3:31]
+|  |  |  |  |  |  |  |f_params:
+|  |  |  |  |  |  |  |  ParamSpecList[3:18-3:30]
+|  |  |  |  |  |  |  |  |  ParamSpec[3:18-3:30]
+|  |  |  |  |  |  |  |  |  |f_ids:
+|  |  |  |  |  |  |  |  |  |  DefiningNameList[3:18-3:20]
+|  |  |  |  |  |  |  |  |  |  |  DefiningName[3:18-3:20]
+|  |  |  |  |  |  |  |  |  |  |  |f_name:
+|  |  |  |  |  |  |  |  |  |  |  |  Id[3:18-3:20]: nb
+|  |  |  |  |  |  |  |  |  |f_has_aliased:
+|  |  |  |  |  |  |  |  |  |  AliasedAbsent[3:22-3:22]
+|  |  |  |  |  |  |  |  |  |f_mode:
+|  |  |  |  |  |  |  |  |  |  ModeDefault[3:22-3:22]
+|  |  |  |  |  |  |  |  |  |f_type_expr:
+|  |  |  |  |  |  |  |  |  |  SubtypeIndication[3:23-3:30]
+|  |  |  |  |  |  |  |  |  |  |f_has_not_null:
+|  |  |  |  |  |  |  |  |  |  |  NotNullAbsent[3:22-3:22]
+|  |  |  |  |  |  |  |  |  |  |f_name:
+|  |  |  |  |  |  |  |  |  |  |  Id[3:23-3:30]: Integer
+|  |  |  |  |  |  |  |  |  |  |f_constraint: <null>
+|  |  |  |  |  |  |  |  |  |f_default_expr: <null>
+|  |  |  |  |  |  |  |  |  |f_aspects: <null>
+|  |  |  |  |  |  |f_subp_returns:
+|  |  |  |  |  |  |  SubtypeIndication[3:39-3:46]
+|  |  |  |  |  |  |  |f_has_not_null:
+|  |  |  |  |  |  |  |  NotNullAbsent[3:38-3:38]
+|  |  |  |  |  |  |  |f_name:
+|  |  |  |  |  |  |  |  Id[3:39-3:46]: Integer
+|  |  |  |  |  |  |  |f_constraint: <null>
+|  |  |  |  |  |f_aspects: <null>
+|  |  |  |  |  |f_decls:
+|  |  |  |  |  |  DeclarativePart[4:7-6:5]
+|  |  |  |  |  |  |f_decls:
+|  |  |  |  |  |  |  AdaNodeList[5:9-5:26]
+|  |  |  |  |  |  |  |  ObjectDecl[5:9-5:26]
+|  |  |  |  |  |  |  |  |f_ids:
+|  |  |  |  |  |  |  |  |  DefiningNameList[5:9-5:10]
+|  |  |  |  |  |  |  |  |  |  DefiningName[5:9-5:10]
+|  |  |  |  |  |  |  |  |  |  |f_name:
+|  |  |  |  |  |  |  |  |  |  |  Id[5:9-5:10]: r
+|  |  |  |  |  |  |  |  |f_has_aliased:
+|  |  |  |  |  |  |  |  |  AliasedAbsent[5:12-5:12]
+|  |  |  |  |  |  |  |  |f_has_constant:
+|  |  |  |  |  |  |  |  |  ConstantAbsent[5:12-5:12]
+|  |  |  |  |  |  |  |  |f_mode:
+|  |  |  |  |  |  |  |  |  ModeDefault[5:12-5:12]
+|  |  |  |  |  |  |  |  |f_type_expr:
+|  |  |  |  |  |  |  |  |  SubtypeIndication[5:13-5:20]
+|  |  |  |  |  |  |  |  |  |f_has_not_null:
+|  |  |  |  |  |  |  |  |  |  NotNullAbsent[5:12-5:12]
+|  |  |  |  |  |  |  |  |  |f_name:
+|  |  |  |  |  |  |  |  |  |  Id[5:13-5:20]: Integer
+|  |  |  |  |  |  |  |  |  |f_constraint: <null>
+|  |  |  |  |  |  |  |  |f_default_expr:
+|  |  |  |  |  |  |  |  |  Int[5:24-5:25]: 0
+|  |  |  |  |  |  |  |  |f_renaming_clause: <null>
+|  |  |  |  |  |  |  |  |f_aspects: <null>
+|  |  |  |  |  |f_stmts:
+|  |  |  |  |  |  HandledStmts[6:10-17:5]
+|  |  |  |  |  |  |f_stmts:
+|  |  |  |  |  |  |  StmtList[7:9-16:16]
+|  |  |  |  |  |  |  |  ForLoopStmt[7:9-9:18]
+|  |  |  |  |  |  |  |  |f_spec:
+|  |  |  |  |  |  |  |  |  ForLoopSpec[7:13-7:23]
+|  |  |  |  |  |  |  |  |  |f_var_decl:
+|  |  |  |  |  |  |  |  |  |  ForLoopVarDecl[7:13-7:14]
+|  |  |  |  |  |  |  |  |  |  |f_id:
+|  |  |  |  |  |  |  |  |  |  |  DefiningName[7:13-7:14]
+|  |  |  |  |  |  |  |  |  |  |  |f_name:
+|  |  |  |  |  |  |  |  |  |  |  |  Id[7:13-7:14]: i
+|  |  |  |  |  |  |  |  |  |  |f_id_type: <null>
+|  |  |  |  |  |  |  |  |  |f_loop_type:
+|  |  |  |  |  |  |  |  |  |  IterTypeIn[7:15-7:17]
+|  |  |  |  |  |  |  |  |  |f_has_reverse:
+|  |  |  |  |  |  |  |  |  |  ReverseAbsent[7:17-7:17]
+|  |  |  |  |  |  |  |  |  |f_iter_expr:
+|  |  |  |  |  |  |  |  |  |  BinOp[7:18-7:23]
+|  |  |  |  |  |  |  |  |  |  |f_left:
+|  |  |  |  |  |  |  |  |  |  |  Int[7:18-7:19]: 1
+|  |  |  |  |  |  |  |  |  |  |f_op:
+|  |  |  |  |  |  |  |  |  |  |  OpDoubleDot[7:19-7:21]
+|  |  |  |  |  |  |  |  |  |  |f_right:
+|  |  |  |  |  |  |  |  |  |  |  Id[7:21-7:23]: nb
+|  |  |  |  |  |  |  |  |f_stmts:
+|  |  |  |  |  |  |  |  |  StmtList[8:13-8:24]
+|  |  |  |  |  |  |  |  |  |  AssignStmt[8:13-8:24]
+|  |  |  |  |  |  |  |  |  |  |f_dest:
+|  |  |  |  |  |  |  |  |  |  |  Id[8:13-8:14]: r
+|  |  |  |  |  |  |  |  |  |  |f_expr:
+|  |  |  |  |  |  |  |  |  |  |  BinOp[8:18-8:23]
+|  |  |  |  |  |  |  |  |  |  |  |f_left:
+|  |  |  |  |  |  |  |  |  |  |  |  Id[8:18-8:19]: r
+|  |  |  |  |  |  |  |  |  |  |  |f_op:
+|  |  |  |  |  |  |  |  |  |  |  |  OpMult[8:20-8:21]
+|  |  |  |  |  |  |  |  |  |  |  |f_right:
+|  |  |  |  |  |  |  |  |  |  |  |  Id[8:22-8:23]: i
+|  |  |  |  |  |  |  |  |f_end_name: <null>
+|  |  |  |  |  |  |  |  IfStmt[10:9-16:16]
+|  |  |  |  |  |  |  |  |f_cond_expr:
+|  |  |  |  |  |  |  |  |  RelationOp[10:12-10:17]
+|  |  |  |  |  |  |  |  |  |f_left:
+|  |  |  |  |  |  |  |  |  |  Id[10:12-10:13]: r
+|  |  |  |  |  |  |  |  |  |f_op:
+|  |  |  |  |  |  |  |  |  |  OpLt[10:14-10:15]
+|  |  |  |  |  |  |  |  |  |f_right:
+|  |  |  |  |  |  |  |  |  |  Int[10:16-10:17]: 0
+|  |  |  |  |  |  |  |  |f_then_stmts:
+|  |  |  |  |  |  |  |  |  StmtList[11:13-11:22]
+|  |  |  |  |  |  |  |  |  |  ReturnStmt[11:13-11:22]
+|  |  |  |  |  |  |  |  |  |  |f_return_expr:
+|  |  |  |  |  |  |  |  |  |  |  Int[11:20-11:21]: 0
+|  |  |  |  |  |  |  |  |f_alternatives:
+|  |  |  |  |  |  |  |  |  ElsifStmtPartList[12:9-13:22]
+|  |  |  |  |  |  |  |  |  |  ElsifStmtPart[12:9-13:22]
+|  |  |  |  |  |  |  |  |  |  |f_cond_expr:
+|  |  |  |  |  |  |  |  |  |  |  RelationOp[12:15-12:20]
+|  |  |  |  |  |  |  |  |  |  |  |f_left:
+|  |  |  |  |  |  |  |  |  |  |  |  Id[12:15-12:16]: r
+|  |  |  |  |  |  |  |  |  |  |  |f_op:
+|  |  |  |  |  |  |  |  |  |  |  |  OpEq[12:17-12:18]
+|  |  |  |  |  |  |  |  |  |  |  |f_right:
+|  |  |  |  |  |  |  |  |  |  |  |  Int[12:19-12:20]: 1
+|  |  |  |  |  |  |  |  |  |  |f_stmts:
+|  |  |  |  |  |  |  |  |  |  |  StmtList[13:13-13:22]
+|  |  |  |  |  |  |  |  |  |  |  |  ReturnStmt[13:13-13:22]
+|  |  |  |  |  |  |  |  |  |  |  |  |f_return_expr:
+|  |  |  |  |  |  |  |  |  |  |  |  |  Int[13:20-13:21]: 1
+|  |  |  |  |  |  |  |  |f_else_stmts:
+|  |  |  |  |  |  |  |  |  StmtList[15:13-15:22]
+|  |  |  |  |  |  |  |  |  |  ReturnStmt[15:13-15:22]
+|  |  |  |  |  |  |  |  |  |  |f_return_expr:
+|  |  |  |  |  |  |  |  |  |  |  Id[15:20-15:21]: r
+|  |  |  |  |  |  |f_exceptions:
+|  |  |  |  |  |  |  AdaNodeList[16:15-16:15]: <empty list>
+|  |  |  |  |  |f_end_name:
+|  |  |  |  |  |  EndName[17:9-17:12]
+|  |  |  |  |  |  |f_name:
+|  |  |  |  |  |  |  Id[17:9-17:12]: fac
+|  |  |f_stmts: <null>
+|  |  |f_end_name:
+|  |  |  EndName[19:5-19:9]
+|  |  |  |f_name:
+|  |  |  |  Id[19:5-19:9]: test
+|f_pragmas:
+|  PragmaNodeList[19:10-19:10]: <empty list>
