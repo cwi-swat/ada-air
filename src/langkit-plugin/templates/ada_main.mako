@@ -92,15 +92,9 @@ procedure Main is
                     op_name       : constant String := Lower_Name_With_Underscore (op_full_name(3..op_full_name'Last));
                begin
                     return Prefix & Just & op_name & "(" &\
-                    <%
-                    i = 0
-                    %>
                      % for field in n.get_parse_fields(include_inherited=True):
-                        % if i != 1:
+                        % if field.api_name.lower != "f_op":
                    Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}) & ", " &
-                        <%
-                        i = i + 1
-                        %>
                         % endif
                      % endfor
                      Prefix & src & ")" & End_Just;
