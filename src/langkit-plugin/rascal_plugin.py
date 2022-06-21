@@ -274,7 +274,7 @@ class RascalPass(langkit.passes.AbstractPass):
                 lower_name = n.public_type.api_name.lower
                 remaing_fields = []
                 op_field = None
-                fields = n.get_parse_fields(include_inherited=True)
+                fields = n.get_parse_fields(include_inherited=True, predicate=lambda f : not f.null)
                 for field in fields:
                     assert field.type.is_ast_node
                     if field.api_name.lower != "f_op":
@@ -293,7 +293,7 @@ class RascalPass(langkit.passes.AbstractPass):
                 # inlining these nodes
                 continue
             else:
-                fields = n.get_parse_fields(include_inherited=True)
+                fields = n.get_parse_fields(include_inherited=True, predicate=lambda f : not f.null)
                 constructor = RascalConstructor(n.public_type.api_name.lower)
                 if n.is_token_node:
                     constructor.add_token_field()
