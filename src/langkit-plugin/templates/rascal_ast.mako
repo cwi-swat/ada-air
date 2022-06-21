@@ -17,8 +17,12 @@ module lang::ada::AST
 
 import IO;
 import List;
+import Set;
 import util::Maybe;
 alias Ada_Node = node;
+
+
+data Stmt_Or_Decl = decl_kind(Decl As_Decl) | stmt_kind(Stmt As_Stmt);
 
     % for type_name, constructors in types.get_types().items():
 data ${type_name}(loc src=|unknown:///|) =\
@@ -41,3 +45,20 @@ ${comma}${field_type} ${field_name}\
           % endfor
 ;
      % endfor
+
+<%
+    alphabet = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y" "z"]
+%>
+void PostProcess(Ada_Node N) {
+    visit(N) {
+    % for type_name, constructors in types.get_types().items():
+        % for constructor in constructors:
+        case "${constructor.get_name().replace('\\','')}"(${", ".join(alphabet[0:len(constructor.get_fields())])}) => \
+${constructor.get_name()}(${", ".join(alphabet[0:len(constructor.get_fields())])})
+        % endfor
+    % endfor
+    case "nothing"() => nothing()
+
+    case "just"(a) => just(a)
+    }
+}

@@ -32,7 +32,8 @@ procedure Main is
 
     function Escape_Quotes (S : String) return String is (GNATCOLL.Utils.Replace (s, """", "\"""));
 
-       function Lower_Name_With_Underscore(S : String) return String is
+       
+    function Lower_Name_With_Underscore(S : String) return String is
       use Ada.Strings.Unbounded;
       use Ada.Characters.Handling;
       Unb : Unbounded_String := To_Unbounded_String ("" & To_Lower(S(S'First)));
@@ -46,17 +47,17 @@ procedure Main is
       return To_String(Unb);
    end Lower_Name_With_Underscore;
    
-    function Export_AST_To_Rascal (N : LAL.Ada_Node'Class; Indent : Natural := 0; Pretty_Print : Boolean := True; IsOptional : Boolean := False) return String is
+    function Export_AST_To_Rascal (N : LAL.Ada_Node'Class; Indent : Natural := 0; Pretty_Print : Boolean := True; IsOptional : Boolean := False; Need_Chained_Constructor : Boolean := False) return String is
         use Ada.Strings.Fixed;
         use Ada.Characters.Latin_1;
         Tab : constant String := (if Pretty_Print then "|  " else "");
         Prefix : constant String := (if Pretty_Print then LF & (Indent * Tab) else "");
-        Just : constant String := (if IsOptional then "just(" else "");
-        End_Just : constant String := (if IsOptional then ")" else "");
+        Just : constant String := (if IsOptional then "{" else "");
+        End_Just : constant String := (if IsOptional then "}" else "");
         src : constant String := (if not N.Is_Null then "src=" & To_Rascal_Sloc_Range(N) else "");
     begin
         if N.Is_Null then
-            return Prefix & "nothing()";
+            return Prefix & "{}";
         end if;
     case N.Kind is
         % for n in ctx.astnode_types:
@@ -69,11 +70,11 @@ procedure Main is
                 IsEmpty : Boolean := True;
             begin
                 for node of N.As_${n.public_type.api_name.camel_with_underscores} loop
-                    Append (s, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False) & ","); -- no list of maybe
+                    Append (s, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False, Need_Chained_Constructor) & ","); -- no list of maybe
                     IsEmpty := False;
                 end loop;
                 if not IsEmpty then
-                    Replace_Element (s, Length(s), ' ');
+                    Replace_Element (s, Length(s), ' '); -- removing last comma
                     Append (s, Prefix & "]" & End_Just);
                 else
                     Append (s, "]" & End_Just);
@@ -81,35 +82,49 @@ procedure Main is
                 return To_String (s);
             end;
                 % elif n.public_type.api_name.lower.endswith("_absent"):
-            return Prefix & "nothing()";  -- always Maybe
+            return Prefix & "{}";  -- always Maybe
 
-                % elif n.public_type.api_name.lower.endswith("_present"):
-            return Prefix & "just(${n.base.public_type.api_name.lower}(" & src & "))"; -- # always Maybe
+                % elif n.public_type.api_name.lower.endswith("_present"):          
+            return Prefix & "{${n.base.public_type.api_name.lower}(" & src & ")}"; --  always Maybe
 
-                % elif any(n.public_type.api_name.lower == name for name in inlined):
+                % elif n.public_type.api_name.lower in inlined_prefix_nodes:
                declare
                     op_full_name  : constant String := N.As_${n.public_type.api_name.camel_with_underscores}.F_Op.Kind_Name;
                     op_name       : constant String := Lower_Name_With_Underscore (op_full_name(3..op_full_name'Last));
                begin
-                    return Prefix & Just & op_name & "(" &\
-                     % for field in n.get_parse_fields(include_inherited=True):
+                    return Prefix & Just & "${inlined_prefix_nodes[n.public_type.api_name.lower]}" & op_name & "(" &\
+                    % for field in n.get_parse_fields(include_inherited=True):
                         % if field.api_name.lower != "f_op":
-                   Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}) & ", " &
+                Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}) & ", " &
                         % endif
-                     % endfor
-                     Prefix & src & ")" & End_Just;
+                    % endfor
+                    Prefix & src & ")";
                end;
 
                 % else:
-            return Prefix & Just & "${n.public_type.api_name.lower} (" &
+                % if get_chained_constructor(n) is not None:
+            if Need_Chained_Constructor then
+            return Prefix & Just & "${get_chained_constructor(n)}" & "(" & "${n.public_type.api_name.lower} (" &
                     % if n.is_token_node:
                    Prefix & Tab & """" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """" & ", " &
                     % endif
-                    % for field in n.get_parse_fields(include_inherited=True):
-                   Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}) & ", " &
-
+                    % for field in n.get_parse_fields(include_inherited=True):                
+                    Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}) & ", " &
+                    % endfor
+                   Prefix & src & ")" & ")" & End_Just;
+            else
+                % endif
+              return Prefix & Just & "${n.public_type.api_name.lower} (" &
+                    % if n.is_token_node:
+                   Prefix & Tab & """" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """" & ", " &
+                    % endif
+                    % for field in n.get_parse_fields(include_inherited=True):                
+                    Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}) & ", " &
                     % endfor
                    Prefix & src & ")" & End_Just;
+                    % if get_chained_constructor(n) is not None:
+            end if;
+                    % endif
 
                 % endif
            % endif
