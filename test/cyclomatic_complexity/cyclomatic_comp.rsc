@@ -19,18 +19,14 @@ module cyclomatic_comp
 import IO;
 import lang::ada::AST;
 import lang::ada::ImportAST;
-import util::Maybe;
 import Set;
-import Node;
 import List;
 
 
-                            // why I can't use `Decl fun` here ?
-void compute_cyclomatic_complexity(Ada_Node fun) {
+void compute_cyclomatic_complexity(Base_Formal_Param_Holder Subp_Spec, Stmt Stmts) {
     int c = 1;
-    visit(fun)
+    visit(Stmts)
     {
-        // why `case for_loop_stmt(_*):` doesn't work ?
         case for_loop_stmt(_,_,_):
             c += 1;
         case loop_stmt(_,_,_):
@@ -38,49 +34,21 @@ void compute_cyclomatic_complexity(Ada_Node fun) {
         case while_loop_stmt(_,_,_):
             c += 1;
         case f: if_stmt(_,_, alt, els):
-        {
-            c += 1 + size(alt);
-            switch(els) {
-                case just(_):
-                    c += 1;
-            }  
-        }
+            c += 1 + size(alt) + size(els);
         case case_stmt(_,_):
             c += 1;
         case case_stmt_alternative(_,_):
             c += 1;
     }
 
-    fun_name = "";
-    // Is there a better way to access nodes fields? By their names maybe?
-    if (Ada_Node spec := fun[1]) // Why I can't use `Spec spec` here ?
-    {
-        if(Ada_Node name := spec[1])
-        {
-            for(/Ada_Node n <- name) {
-                switch(n){
-                    case identifier(content):
-                        fun_name = content;
-                }
-            }
-        }
-    }
-
+    str fun_name = getFirstFrom(Subp_Spec.F_Subp_Name).F_Name.content;
     println("<fun_name> : <c>");
 }
-
-
 
 void main() {
     loc ada_air = |file:///Users/camposdd/Documents/ada-air|;
     Compilation_Unit U = importAdaAST(ada_air + "/test/cyclomatic_complexity/test.ads", ada_air);
-
-    // I wanted to write `for(/subp_body n <- U)`
-    // because you did somtehing similar in your papers/presentations but that doesn't work
-    for(/Ada_Node n <- U) {
-        switch(n) {
-            case fun: subp_body(_,_,_,_,_,_):
-                compute_cyclomatic_complexity(fun);
-        }
+    for(/subp_body(_, Subp_Spec, _, _, Stmts, _) <- U) {
+        compute_cyclomatic_complexity(Subp_Spec, Stmts);
     }
 }

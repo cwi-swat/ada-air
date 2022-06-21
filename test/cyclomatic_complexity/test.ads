@@ -1,3 +1,4 @@
+pragma Ada_2012;
 package body test is
 
     function fac(nb : Integer) return Integer
@@ -9,7 +10,7 @@ package body test is
         end loop;
         if r < 0 then
             return 0;
-        elsif r = 1 then
+        elsif r = 1 and r = 1 then
             return 1;
         else
             return r;
