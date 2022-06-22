@@ -6,32 +6,32 @@ from langkit.compile_context import CompileCtx
 from langkit.compiled_types import CompiledType, Field, ASTNodeType
 from mako.template import Template
 
-racal_types = {'Keyword': {'tagged_node', 'constant_node', 'abstract_node', 'aliased_node', 'abort_node', 'limited_node', 'protected_node', 'reverse_node', 'all_node', 'private_node', 'overriding_node', 'synchronized_node', 'until_node'},
-                'Array_Indices': {'array_indices'},
-                'Assoc': {'basic_assoc', 'aspect_assoc', 'base_assoc'},
-                'Spec': {'aspect_spec', 'loop_spec', 'range_spec'},
-                'Base_Formal_Param_Holder': {'base_formal_param_holder'},
-                'Def': {'task_def', 'component_def', 'type_def', 'base_record_def', 'protected_def'},
-                'Decl': {'paren_abstract_state_decl', 'basic_decl', 'multi_abstract_state_decl', 'null_component_decl'},
-                'Stmt': {'handled_stmts', 'elsif_stmt_part', 'case_stmt_alternative', 'stmt', 'pragma_node', 'component_clause', 'aspect_clause', 'with_clause', 'use_clause'},
-                'Compilation_Unit': {'compilation_unit'},
-                'Constraint': {'constraint'},
-                'Declarative_Part': {'declarative_part'},
-                'Expr': {'expr', 'elsif_expr_part', 'type_expr', 'others_designator'},
-                'Interface_Kind': {'interface_kind'},
-                'Iter_Type': {'iter_type'},
-                'Mode': {'mode'},
-                'Not_Null': {'not_null'},
-                'Params': {'params'},
-                'Quantifier': {'quantifier'},
-                'Renaming_Clause': {'renaming_clause'},
-                'Select_When_Part': {'select_when_part'},
-                'Subp_Kind': {'subp_kind'},
-                'Unconstrained_Array_Index': {'unconstrained_array_index'},                    
-                'Variant': {'variant'},
-                'Variant_Part': {'variant_part'},
-                'With_Private': {'with_private'},
-                'Unit' : {'library_item', 'subunit'}}
+racal_types_mapping = {'Keyword': {'tagged_node', 'constant_node', 'abstract_node', 'aliased_node', 'abort_node', 'limited_node', 'protected_node', 'reverse_node', 'all_node', 'private_node', 'overriding_node', 'synchronized_node', 'until_node'},
+                       'Array_Indices': {'array_indices'},
+                       'Assoc': {'basic_assoc', 'aspect_assoc', 'base_assoc'},
+                       'Spec': {'aspect_spec', 'loop_spec', 'range_spec'},
+                       'Base_Formal_Param_Holder': {'base_formal_param_holder'},
+                       'Def': {'task_def', 'component_def', 'type_def', 'base_record_def', 'protected_def'},
+                       'Decl': {'paren_abstract_state_decl', 'basic_decl', 'multi_abstract_state_decl', 'null_component_decl'},
+                       'Stmt': {'handled_stmts', 'elsif_stmt_part', 'case_stmt_alternative', 'stmt', 'pragma_node', 'component_clause', 'aspect_clause', 'with_clause', 'use_clause'},
+                       'Compilation_Unit': {'compilation_unit'},
+                       'Constraint': {'constraint'},
+                       'Declarative_Part': {'declarative_part'},
+                       'Expr': {'expr', 'elsif_expr_part', 'type_expr', 'others_designator'},
+                       'Interface_Kind': {'interface_kind'},
+                       'Iter_Type': {'iter_type'},
+                       'Mode': {'mode'},
+                       'Not_Null': {'not_null'},
+                       'Params': {'params'},
+                       'Quantifier': {'quantifier'},
+                       'Renaming_Clause': {'renaming_clause'},
+                       'Select_When_Part': {'select_when_part'},
+                       'Subp_Kind': {'subp_kind'},
+                       'Unconstrained_Array_Index': {'unconstrained_array_index'},
+                       'Variant': {'variant'},
+                       'Variant_Part': {'variant_part'},
+                       'With_Private': {'with_private'},
+                       'Unit': {'library_item', 'subunit'}}
 
 field_with_chained_constructor = set({})
 
@@ -41,13 +41,31 @@ def Stmt_Or_Decl(t: ASTNodeType):
         return None
     else:
         name = t.get_inheritance_chain()[1].public_type.api_name.lower
-        if name in racal_types["Decl"]:
+        if name in racal_types_mapping["Decl"]:
             return "decl_kind"
-        elif name in racal_types["Stmt"]:
+        elif name in racal_types_mapping["Stmt"]:
             return "stmt_kind"
         return None
 
-chained_constructor_fun = {"Stmt_Or_Decl" : Stmt_Or_Decl}
+def Expr_Or_Assoc(t: ASTNodeType):
+    if t.is_root_node:
+        return None
+    else:
+        name = t.get_inheritance_chain()[1].public_type.api_name.lower
+        if t.is_list:
+            if t.element_type.is_root_node:
+                return None
+            else:
+                name = t.element_type.get_inheritance_chain()[1].public_type.api_name.lower
+        if name in racal_types_mapping["Expr"]:
+            return "expr_kind"
+        elif name in racal_types_mapping["Assoc"]:
+            return "assoc_kind"
+        return None
+
+
+chained_constructor_fun = {"Stmt_Or_Decl": Stmt_Or_Decl,
+                           "Expr_Or_Assoc": Expr_Or_Assoc}
 
 def get_chained_constructor(t: ASTNodeType):
     for n, fun in chained_constructor_fun.items():
@@ -74,7 +92,20 @@ class RascalConstructor:
     def __get_rascal_field_type_name(self, field: Field) -> str:
         field_type = field.type.entity.astnode
         field_type_name = None
+      
+
+
+
         if field_type.is_list:
+            print(f"{field.api_name.camel_with_underscores} {field.type.entity.astnode.public_type.api_name.camel_with_underscores}") 
+            print(field.precise_element_types.matched_types)
+            s = set({RascalDataTypes.get_associated_rascal_type(n) for n in field.precise_element_types.minimal_matched_types})
+            print(s)
+            #print(field.precise_element_types.matched_types)
+            #if len(field.precise_element_types.matched_types) == 1:
+            #    print(f"{field.api_name.camel_with_underscores} {field.type.entity.astnode.public_type.api_name.camel_with_underscores}") 
+
+
             if field.precise_element_types.minimal_common_type.is_root_node:
                 s = set({RascalDataTypes.get_associated_rascal_type(n) for n in field.precise_element_types.minimal_matched_types})
                 if len(s) == 1:
@@ -82,7 +113,11 @@ class RascalConstructor:
                 elif s == {"Decl", "Stmt"}:
                     field_type_name = f"list[Stmt_Or_Decl]"
                     field_with_chained_constructor.add(field)
+                elif s == {"Expr", "Assoc"}:
+                    field_type_name = f"list[Expr_Or_Assoc]"
+                    field_with_chained_constructor.add(field)
                 else:
+                    print("Warning Ada_Node not resolve " + str(s))
                     element_contained = field_type.element_type
                     field_type_name = f"list[{RascalDataTypes.get_associated_rascal_type(element_contained)}]"
             else:
@@ -96,6 +131,15 @@ class RascalConstructor:
             field_type_name = f"set[{RascalDataTypes.get_associated_rascal_type(field_type)}]"
 
         else:
+            print(f"{field.api_name.camel_with_underscores} {field.type.entity.astnode.public_type.api_name.camel_with_underscores}") 
+            print(field.precise_types.matched_types)
+            s = set({RascalDataTypes.get_associated_rascal_type(n) if not n.is_list else RascalDataTypes.get_associated_rascal_type(n.element_type)
+            for n in field.precise_types.minimal_matched_types})
+            print(s)
+            #if len(field.precise_types.matched_types) == 1:
+            #    print(f"{field.api_name.camel_with_underscores} {field.type.entity.astnode.public_type.api_name.camel_with_underscores}") 
+
+
             if field.precise_types.minimal_common_type.is_root_node:
                 s = set({RascalDataTypes.get_associated_rascal_type(n) if not n.is_list else RascalDataTypes.get_associated_rascal_type(n.element_type)
                          for n in field.precise_types.minimal_matched_types})
@@ -103,9 +147,12 @@ class RascalConstructor:
                     field_type_name = s.pop()
                 elif s == {"Decl", "Stmt"}:
                     field_type_name = "Stmt_Or_Decl"
-
+                    field_with_chained_constructor.add(field)
+                elif s == {"Expr", "Assoc"}:
+                    field_type_name = "Expr_Or_Assoc"
                     field_with_chained_constructor.add(field)
                 else:
+                    print("Warning Ada_Node not resolve " + str(s))
                     field_type_name = RascalDataTypes.get_associated_rascal_type(field_type)
             else:
                 field_type_name = RascalDataTypes.get_associated_rascal_type(field_type)
@@ -154,7 +201,7 @@ class RascalDataTypes:
             return t.public_type.api_name.camel_with_underscores
         else:
             name = t.get_inheritance_chain()[1].public_type.api_name.lower
-            for rascal_type_name, lal_types_name in racal_types.items():
+            for rascal_type_name, lal_types_name in racal_types_mapping.items():
                 if name in lal_types_name:
                     return rascal_type_name
             raise RuntimeError(f"{name} not present in _rascal_types")

@@ -66,19 +66,35 @@ procedure Main is
                 % if n.is_list or n.is_root_list_type:
             declare
                 use Ada.Strings.Unbounded;
-                s : Unbounded_String := To_Unbounded_String (Prefix & Just & "[");
+                s : Unbounded_String := To_Unbounded_String (Prefix & Just);
                 IsEmpty : Boolean := True;
             begin
+                % if get_chained_constructor(n) is not None:
+                if Need_Chained_Constructor then
+                    Append (s, "${get_chained_constructor(n)}(");
+                end if;
+                % endif
+                Append(s, "[");
                 for node of N.As_${n.public_type.api_name.camel_with_underscores} loop
+                % if get_chained_constructor(n) is not None:
+                    Append (s, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False, False) & ","); -- no list of maybe
+                % else:
                     Append (s, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False, Need_Chained_Constructor) & ","); -- no list of maybe
+                % endif
                     IsEmpty := False;
                 end loop;
                 if not IsEmpty then
                     Replace_Element (s, Length(s), ' '); -- removing last comma
-                    Append (s, Prefix & "]" & End_Just);
+                    Append (s, Prefix & "]");
                 else
-                    Append (s, "]" & End_Just);
+                    Append (s, "]");
                 end if;
+                % if get_chained_constructor(n) is not None:
+                if Need_Chained_Constructor then
+                    Append (s, ")");
+                end if;
+                % endif
+                Append(s, End_Just);
                 return To_String (s);
             end;
                 % elif n.public_type.api_name.lower.endswith("_absent"):
@@ -88,40 +104,40 @@ procedure Main is
             return Prefix & "{${n.base.public_type.api_name.lower}(" & src & ")}"; --  always Maybe
 
                 % elif n.public_type.api_name.lower in inlined_prefix_nodes:
-               declare
-                    op_full_name  : constant String := N.As_${n.public_type.api_name.camel_with_underscores}.F_Op.Kind_Name;
-                    op_name       : constant String := Lower_Name_With_Underscore (op_full_name(3..op_full_name'Last));
-               begin
-                    return Prefix & Just & "${inlined_prefix_nodes[n.public_type.api_name.lower]}" & op_name & "(" &\
+            declare
+                op_full_name  : constant String := N.As_${n.public_type.api_name.camel_with_underscores}.F_Op.Kind_Name;
+                op_name       : constant String := Lower_Name_With_Underscore (op_full_name(3..op_full_name'Last));
+            begin
+                return Prefix & Just & "${inlined_prefix_nodes[n.public_type.api_name.lower]}" & op_name & "(" &\
                     % for field in n.get_parse_fields(include_inherited=True):
                         % if field.api_name.lower != "f_op":
                 Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}) & ", " &
                         % endif
                     % endfor
-                    Prefix & src & ")";
-               end;
+                Prefix & src & ")" & End_Just;
+            end;
 
                 % else:
                 % if get_chained_constructor(n) is not None:
             if Need_Chained_Constructor then
-            return Prefix & Just & "${get_chained_constructor(n)}" & "(" & "${n.public_type.api_name.lower} (" &
+                return Prefix & Just & "${get_chained_constructor(n)}" & "(" & "${n.public_type.api_name.lower} (" &
                     % if n.is_token_node:
-                   Prefix & Tab & """" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """" & ", " &
+                Prefix & Tab & """" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """" & ", " &
                     % endif
                     % for field in n.get_parse_fields(include_inherited=True):                
-                    Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}) & ", " &
+                Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}) & ", " &
                     % endfor
-                   Prefix & src & ")" & ")" & End_Just;
+                Prefix & src & ")" & ")" & End_Just;
             else
                 % endif
-              return Prefix & Just & "${n.public_type.api_name.lower} (" &
+                return Prefix & Just & "${n.public_type.api_name.lower} (" &
                     % if n.is_token_node:
-                   Prefix & Tab & """" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """" & ", " &
+                Prefix & Tab & """" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """" & ", " &
                     % endif
-                    % for field in n.get_parse_fields(include_inherited=True):                
-                    Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}) & ", " &
+                    % for field in n.get_parse_fields(include_inherited=True):
+                Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}) & ", " &
                     % endfor
-                   Prefix & src & ")" & End_Just;
+                Prefix & src & ")" & End_Just;
                     % if get_chained_constructor(n) is not None:
             end if;
                     % endif
