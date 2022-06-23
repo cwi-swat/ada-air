@@ -92,20 +92,7 @@ class RascalConstructor:
     def __get_rascal_field_type_name(self, field: Field) -> str:
         field_type = field.type.entity.astnode
         field_type_name = None
-      
-
-
-
         if field_type.is_list:
-            print(f"{field.api_name.camel_with_underscores} {field.type.entity.astnode.public_type.api_name.camel_with_underscores}") 
-            print(field.precise_element_types.matched_types)
-            s = set({RascalDataTypes.get_associated_rascal_type(n) for n in field.precise_element_types.minimal_matched_types})
-            print(s)
-            #print(field.precise_element_types.matched_types)
-            #if len(field.precise_element_types.matched_types) == 1:
-            #    print(f"{field.api_name.camel_with_underscores} {field.type.entity.astnode.public_type.api_name.camel_with_underscores}") 
-
-
             if field.precise_element_types.minimal_common_type.is_root_node:
                 s = set({RascalDataTypes.get_associated_rascal_type(n) for n in field.precise_element_types.minimal_matched_types})
                 if len(s) == 1:
@@ -131,15 +118,6 @@ class RascalConstructor:
             field_type_name = f"set[{RascalDataTypes.get_associated_rascal_type(field_type)}]"
 
         else:
-            print(f"{field.api_name.camel_with_underscores} {field.type.entity.astnode.public_type.api_name.camel_with_underscores}") 
-            print(field.precise_types.matched_types)
-            s = set({RascalDataTypes.get_associated_rascal_type(n) if not n.is_list else RascalDataTypes.get_associated_rascal_type(n.element_type)
-            for n in field.precise_types.minimal_matched_types})
-            print(s)
-            #if len(field.precise_types.matched_types) == 1:
-            #    print(f"{field.api_name.camel_with_underscores} {field.type.entity.astnode.public_type.api_name.camel_with_underscores}") 
-
-
             if field.precise_types.minimal_common_type.is_root_node:
                 s = set({RascalDataTypes.get_associated_rascal_type(n) if not n.is_list else RascalDataTypes.get_associated_rascal_type(n.element_type)
                          for n in field.precise_types.minimal_matched_types})
