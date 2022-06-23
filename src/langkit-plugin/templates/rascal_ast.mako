@@ -22,9 +22,9 @@ import util::Maybe;
 alias Ada_Node = node;
 
 
-data Stmt_Or_Decl = decl_kind(Decl As_Decl) | stmt_kind(Stmt As_Stmt);
+data Stmt_Or_Decl(loc src=|unknown:///|) = decl_kind(Decl As_Decl) | stmt_kind(Stmt As_Stmt);
 
-data Expr_Or_Assoc = expr_kind(Expr As_Expr) | assoc_kind(list[Assoc] As_Assoc);
+data Expr_Or_Assoc(loc src=|unknown:///|) = expr_kind(Expr As_Expr) | assoc_kind(list[Assoc] As_Assoc);
 
     % for type_name, constructors in types.get_types().items():
 data ${type_name}(loc src=|unknown:///|) =\

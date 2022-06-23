@@ -102,7 +102,7 @@ procedure Main is
                 end if;
                 % if get_chained_constructor(n) is not None:
                 if Need_Chained_Constructor then
-                    Append (s, ")");
+                    Append (s, "," & src & ")");
                 end if;
                 % endif
                 Append(s, End_Just);
@@ -138,7 +138,7 @@ procedure Main is
                     % for field in n.get_parse_fields(include_inherited=True):                
                 Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}) & ", " &
                     % endfor
-                Prefix & src & ")" & ")" & End_Just;
+                Prefix & src & ")," & src & ")" & End_Just;
             else
                 % endif
                 return Prefix & Just & "${n.public_type.api_name.lower} (" &
