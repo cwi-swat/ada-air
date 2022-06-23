@@ -10,25 +10,36 @@ with Ada.Characters.Latin_1;
 with GNATCOLL.Utils;
 with GNAT.Strings;
 with Ada.Characters.Handling;
+with Langkit_Support.token_data_handlers;
 
 procedure Main is
     package LAL renames Libadalang.Analysis;
     package LALCO renames Libadalang.Common;
 
 
-    function To_Rascal_Sloc_Range (N : LAL.Ada_Node'Class) return String is
-        use Ada.Strings.Unbounded;
-        Rascal_Sloc : Unbounded_String := To_Unbounded_String (Langkit_Support.Text.Image (Langkit_Support.Slocs.Image (N.Sloc_Range)));
-        Hyphen_Index : Positive := Index (Rascal_Sloc, "-");
-        FileName : constant String := GNATCOLL.Utils.Replace (N.Unit.Get_Filename, "\", "/"); -- work-arround Rascal doesn't allow backslash
-    begin
-        GNATCOLL.Utils.Replace (S => Rascal_Sloc, Pattern => ":" , Replacement =>  ",");
-        GNATCOLL.Utils.Replace (S => Rascal_Sloc, Pattern => "-" , Replacement =>  ",");
-        Insert (Rascal_Sloc, Hyphen_Index+1, "<");
-        Insert (Rascal_Sloc, Hyphen_Index, ">");
-        Rascal_Sloc := "|file:///" & FileName & "|(0,1,<" & Rascal_Sloc & ">)";
-        return To_String (Rascal_Sloc);
-    end To_Rascal_Sloc_Range;
+   function To_Rascal_Sloc_Range (N : LAL.Ada_Node'Class) return String is
+      use Ada.Strings.Unbounded;
+      use Langkit_Support.Slocs;
+      LAL_Sloc : Source_Location_Range := N.Sloc_Range;
+   begin
+      LAL_Sloc.Start_Column := LAL_Sloc.Start_Column - 1;
+      LAL_Sloc.End_Column := LAL_Sloc.End_Column - 1;
+      declare
+         
+         Rascal_Sloc : Unbounded_String := To_Unbounded_String (Langkit_Support.Text.Image (Image (LAL_Sloc)));
+         Hyphen_Index : Positive := Index (Rascal_Sloc, "-");
+         FileName : constant String := GNATCOLL.Utils.Replace (N.Unit.Get_Filename, "\", "/"); -- work-arround Rascal doesn't allow backslash
+         offset : constant Positive := LALCO.Raw_Data (N.Token_Start).Source_First;
+         lenght : constant Positive := N.Unit.Text'Length;
+      begin
+         GNATCOLL.Utils.Replace (S => Rascal_Sloc, Pattern => ":" , Replacement =>  ",");
+         GNATCOLL.Utils.Replace (S => Rascal_Sloc, Pattern => "-" , Replacement =>  ",");
+         Insert (Rascal_Sloc, Hyphen_Index+1, "<");
+         Insert (Rascal_Sloc, Hyphen_Index, ">");
+         Rascal_Sloc := "|file:///" & FileName & "|(" & offset'Image & "," & lenght'Image & ",<" & Rascal_Sloc & ">)";
+         return To_String (Rascal_Sloc);
+      end;
+   end To_Rascal_Sloc_Range;
 
     function Escape_Quotes (S : String) return String is (GNATCOLL.Utils.Replace (s, """", "\"""));
 
