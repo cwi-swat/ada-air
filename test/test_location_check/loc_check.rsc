@@ -25,10 +25,23 @@ import Node;
 import util::SystemAPI;
 
 bool allNodesHaveASource(node haystack) = (true | it && needle.src? | /node needle <- haystack);
-bool allNodesAreOrdered(node haystack) = !(/node needle := haystack && [*_,node a1, *_ ,node a2, * _] := getChildren(needle) &&  a2.src < a1.src);
+
+bool allNodesAreOrdered(node haystack) {
+    for(/node needle <- haystack) {
+        if([*_,node a1, *_ ,node a2, * _] := getChildren(needle) && a2.src < a1.src)
+            return false;
+        else if ([*_,list[node] a1, *_ ,node a2, * _] := getChildren(needle) && !isEmpty(a1) && a2.src < last(a1).src)
+            return false;
+        else if ([*_,node a1, *_ ,list[node] a2, * _] := getChildren(needle) && !isEmpty(a2) && head(a2).src < a1.src)
+            return false;
+        else if ([*_,list[node] a1, *_ ,list[node] a2, * _] := getChildren(needle) && !isEmpty(a1) && ! isEmpty(a2) && head(a2).src < last(a1).src)
+            return false;
+        //TODO handle optional fields
+    }
+    return true;
+}
 
 void main(list[str] args=[]) {
-    //loc ada_air = |file:///Users/camposdd/Documents/ada-air|;
     loc ada_air = |file:///| + getSystemEnvironment()["ADA_AIR"];
     Compilation_Unit U = importAdaAST(ada_air + "/test/test_location_check/test.ads", ada_air);
     println(allNodesHaveASource(U));

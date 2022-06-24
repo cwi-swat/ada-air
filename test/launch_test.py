@@ -20,7 +20,7 @@ def run_rascal(filename, args):
     rascal_jar = os.environ["RASCAL_JAR"]
     proc = subprocess.run(['java', '-Xmx1G', '-Xss32m', '-jar', rascal_jar, filename] + args,  capture_output=True, shell=True)
     out = proc.stdout.decode("utf8")
-    assert proc.returncode == 0
+    assert proc.returncode == 0, "return code isn't 0"
     return out
 
 def clean(s):
@@ -30,7 +30,7 @@ def run_test(dir, filename):
     out = clean(run_rascal(dir + "/" + filename, []))
     with open(dir + '/expected.txt') as f:
         expected = clean(f.read())
-        assert out == expected
+        assert out == expected, "unexpected output"
 
 def print_output(name, color, res):
     max = 50 - len(name)
@@ -51,9 +51,10 @@ for test_dir in dirs:
                 try:
                     run_test(test_dir, file)
                     print_output(test_dir, GREEN, "OK")
-                except Exception:
+                except Exception as e:
                     print_output(test_dir, RED, "KO")
                     succes = False
+                    print(repr(e))
 
 if not succes:
     sys.exit(1)
