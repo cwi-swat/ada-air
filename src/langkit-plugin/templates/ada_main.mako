@@ -25,12 +25,11 @@ procedure Main is
       LAL_Sloc.Start_Column := LAL_Sloc.Start_Column - 1;
       LAL_Sloc.End_Column := LAL_Sloc.End_Column - 1;
       declare
-         
          Rascal_Sloc : Unbounded_String := To_Unbounded_String (Langkit_Support.Text.Image (Image (LAL_Sloc)));
          Hyphen_Index : Positive := Index (Rascal_Sloc, "-");
          FileName : constant String := GNATCOLL.Utils.Replace (N.Unit.Get_Filename, "\", "/"); -- work-arround Rascal doesn't allow backslash
          offset : constant Positive := LALCO.Raw_Data (N.Token_Start).Source_First;
-         lenght : constant Positive := N.Unit.Text'Length;
+         lenght : constant Natural := LALCO.Raw_Data (N.Token_End).Source_Last - LALCO.Raw_Data (N.Token_Start).Source_First + 1;
       begin
          GNATCOLL.Utils.Replace (S => Rascal_Sloc, Pattern => ":" , Replacement =>  ",");
          GNATCOLL.Utils.Replace (S => Rascal_Sloc, Pattern => "-" , Replacement =>  ",");
