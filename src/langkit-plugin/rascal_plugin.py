@@ -12,12 +12,12 @@ racal_types_mapping = {'Keyword': {'tagged_node', 'constant_node', 'abstract_nod
                        'Spec': {'aspect_spec', 'loop_spec', 'range_spec'},
                        'Base_Formal_Param_Holder': {'base_formal_param_holder'},
                        'Def': {'task_def', 'component_def', 'type_def', 'base_record_def', 'protected_def'},
-                       'Decl': {'paren_abstract_state_decl', 'basic_decl', 'multi_abstract_state_decl', 'null_component_decl'},
-                       'Stmt': {'handled_stmts', 'elsif_stmt_part', 'case_stmt_alternative', 'stmt', 'pragma_node', 'component_clause', 'aspect_clause', 'with_clause', 'use_clause'},
+                       'Declaration': {'paren_abstract_state_decl', 'basic_decl', 'multi_abstract_state_decl', 'null_component_decl'},
+                       'Statement': {'handled_stmts', 'elsif_stmt_part', 'case_stmt_alternative', 'stmt', 'pragma_node', 'component_clause', 'aspect_clause', 'with_clause', 'use_clause'},
                        'Compilation_Unit': {'compilation_unit'},
                        'Constraint': {'constraint'},
                        'Declarative_Part': {'declarative_part'},
-                       'Expr': {'expr', 'elsif_expr_part', 'type_expr', 'others_designator'},
+                       'Expression': {'expr', 'elsif_expr_part', 'type_expr', 'others_designator'},
                        'Interface_Kind': {'interface_kind'},
                        'Iter_Type': {'iter_type'},
                        'Mode': {'mode'},
@@ -33,6 +33,7 @@ racal_types_mapping = {'Keyword': {'tagged_node', 'constant_node', 'abstract_nod
                        'With_Private': {'with_private'},
                        'Unit': {'library_item', 'subunit'}}
 
+types_extended_from_m3 = {"Declaration", "Statement", "Expression"}
 field_with_chained_constructor = set({})
 
 
@@ -41,9 +42,9 @@ def Stmt_Or_Decl(t: ASTNodeType):
         return None
     else:
         name = t.get_inheritance_chain()[1].public_type.api_name.lower
-        if name in racal_types_mapping["Decl"]:
+        if name in racal_types_mapping["Declaration"]:
             return "decl_kind"
-        elif name in racal_types_mapping["Stmt"]:
+        elif name in racal_types_mapping["Statement"]:
             return "stmt_kind"
         return None
 
@@ -57,7 +58,7 @@ def Expr_Or_Assoc(t: ASTNodeType):
                 return None
             else:
                 name = t.element_type.get_inheritance_chain()[1].public_type.api_name.lower
-        if name in racal_types_mapping["Expr"]:
+        if name in racal_types_mapping["Expression"]:
             return "expr_kind"
         elif name in racal_types_mapping["Assoc"]:
             return "assoc_kind"
@@ -97,10 +98,10 @@ class RascalConstructor:
                 s = set({RascalDataTypes.get_associated_rascal_type(n) for n in field.precise_element_types.minimal_matched_types})
                 if len(s) == 1:
                     field_type_name = f"list[{s.pop()}]"
-                elif s == {"Decl", "Stmt"}:
+                elif s == {"Declaration", "Statement"}:
                     field_type_name = f"list[Stmt_Or_Decl]"
                     field_with_chained_constructor.add(field)
-                elif s == {"Expr", "Assoc"}:
+                elif s == {"Expression", "Assoc"}:
                     field_type_name = f"list[Expr_Or_Assoc]"
                     field_with_chained_constructor.add(field)
                 else:
@@ -123,10 +124,10 @@ class RascalConstructor:
                          for n in field.precise_types.minimal_matched_types})
                 if len(s) == 1:
                     field_type_name = s.pop()
-                elif s == {"Decl", "Stmt"}:
+                elif s == {"Declaration", "Statement"}:
                     field_type_name = "Stmt_Or_Decl"
                     field_with_chained_constructor.add(field)
-                elif s == {"Expr", "Assoc"}:
+                elif s == {"Expression", "Assoc"}:
                     field_type_name = "Expr_Or_Assoc"
                     field_with_chained_constructor.add(field)
                 else:
@@ -193,6 +194,7 @@ class RascalDataTypes:
 
         if last_open_bracket != -1 and first_close_bracket != -1:
             suffix = name[last_open_bracket + 1: first_close_bracket]
+            suffix = suffix + "_List"
 
         if underscore != -1:
             suffix = suffix[underscore + 1: len(suffix)]
@@ -331,7 +333,7 @@ class RascalPass(langkit.passes.AbstractPass):
         output_dir = os.path.dirname(__file__) + "/../main/rascal/lang/ada/"
         tmp = Template(filename=RascalPass.templates_dir + "rascal_ast.mako")
         with open(output_dir + 'AST.rsc', 'w') as f:
-            f.write(tmp.render(types=rascal_types))
+            f.write(tmp.render(types=rascal_types, types_extended_from_m3=types_extended_from_m3))
 
     @staticmethod
     def emit_exportation_function(context: CompileCtx):

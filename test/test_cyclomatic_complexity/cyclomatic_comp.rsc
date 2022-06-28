@@ -25,7 +25,7 @@ import Node;
 import util::SystemAPI;
 
 
-void compute_cyclomatic_complexity(Base_Formal_Param_Holder Subp_Spec, Stmt Stmts) {
+void compute_cyclomatic_complexity(Base_Formal_Param_Holder Subp_Spec, Statement Stmts) {
     int c = 1;
     visit(Stmts)
     {
