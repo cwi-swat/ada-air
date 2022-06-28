@@ -1,3 +1,24 @@
+<%
+def get_decl(n):
+    hasDecl = False
+    props = [p.api_name.camel_with_underscores for p in n.get_properties(predicate=lambda p: p.is_public)]
+    fun = None
+    for key in decl_functions:
+        if key in props:
+            hasDecl = True
+            fun = key
+            break
+    if not hasDecl:
+        return None
+    args = decl_functions[fun]
+    call = None
+    if len(args) > 0:
+        call = "N.As_{}.{}({})".format(n.public_type.api_name.camel_with_underscores, fun, ", ".join(args))
+    else:
+        call = f"N.As_{n.public_type.api_name.camel_with_underscores}.{fun}"
+
+    return "(if not {}.Is_Null then \"decl=\" & To_Rascal_Sloc_Range({}) else \"\")".format(call,call)
+%>
 with Ada.Text_IO;
 with Libadalang.Analysis;
 with Ada.Command_Line;
@@ -79,18 +100,18 @@ procedure Main is
                 s : Unbounded_String := To_Unbounded_String (Prefix);
                 IsEmpty : Boolean := True;
             begin
-                % if get_chained_constructor(n) is not None:
+                    % if get_chained_constructor(n) is not None:
                 if Need_Chained_Constructor then
                     Append (s, "${get_chained_constructor(n)}(");
                 end if;
-                % endif
+                    % endif
                 Append(s, "[");
                 for node of N.As_${n.public_type.api_name.camel_with_underscores} loop
-                % if get_chained_constructor(n) is not None:
+                    % if get_chained_constructor(n) is not None:
                     Append (s, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False, False) & ","); -- no list of maybe
-                % else:
+                    % else:
                     Append (s, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False, Need_Chained_Constructor) & ","); -- no list of maybe
-                % endif
+                    % endif
                     IsEmpty := False;
                 end loop;
                 if not IsEmpty then
@@ -99,7 +120,7 @@ procedure Main is
                 else
                     Append (s, "]");
                 end if;
-                % if get_chained_constructor(n) is not None:
+                    % if get_chained_constructor(n) is not None:
                 if Need_Chained_Constructor then
                     Append (s, "," & src & ")");
                 end if;
@@ -127,18 +148,36 @@ procedure Main is
             end;
 
                 % else:
-                % if get_chained_constructor(n) is not None:
+                    % if get_chained_constructor(n) is not None:
+                        % if get_decl(n) is not None:
+            declare
+                use Ada.Strings.Unbounded;
+                decl : Unbounded_String;
+            begin
+                begin
+                    decl := To_Unbounded_String (${get_decl(n)});
+                exception
+                    -- Int_Literal has this property but it isn't implemented
+                    -- TODO find a better way to handle this
+                    when others =>
+                        decl := Null_Unbounded_String;
+                end;
+                        % endif
             if Need_Chained_Constructor then
                 return Prefix & Just & "${get_chained_constructor(n)}" & "(" & "${n.public_type.api_name.lower} (" &
-                    % if n.is_token_node:
+                        % if n.is_token_node:
                 Prefix & Tab & """" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """" & ", " &
-                    % endif
-                    % for field in n.get_parse_fields(include_inherited=True):                
+                        % endif
+                        % for field in n.get_parse_fields(include_inherited=True):                
                 Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}) & ", " &
-                    % endfor
+                        % endfor
+                        % if get_decl(n) is not None:
+                Prefix & src & ")," & src & ", " & To_String(decl) & ")" & End_Just;
+                        % else:
                 Prefix & src & ")," & src & ")" & End_Just;
+                        % endif
             else
-                % endif
+                    % endif
                 return Prefix & Just & "${n.public_type.api_name.lower} (" &
                     % if n.is_token_node:
                 Prefix & Tab & """" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """" & ", " &
@@ -146,11 +185,17 @@ procedure Main is
                     % for field in n.get_parse_fields(include_inherited=True):
                 Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}) & ", " &
                     % endfor
+                    % if get_decl(n) is not None:
+                Prefix & src & ", " & To_String(decl) & ")" & End_Just;
+                    % else:
                 Prefix & src & ")" & End_Just;
+                    % endif
                     % if get_chained_constructor(n) is not None:
             end if;
                     % endif
-
+                    % if get_decl(n) is not None:
+            end;
+                    % endif
                 % endif
            % endif
         % endfor

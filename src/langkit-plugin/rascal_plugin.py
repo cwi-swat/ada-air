@@ -34,6 +34,7 @@ racal_types_mapping = {'Keyword': {'tagged_node', 'constant_node', 'abstract_nod
                        'Unit': {'library_item', 'subunit'}}
 
 types_extended_from_m3 = {"Declaration", "Statement", "Expression"}
+decl_functions = dict({"P_Referenced_Decl" : ["True"]})
 field_with_chained_constructor = set({})
 
 
@@ -342,7 +343,7 @@ class RascalPass(langkit.passes.AbstractPass):
             os.mkdir(output_dir)
         tmp = Template(filename=RascalPass.templates_dir + "ada_main.mako")
         with open(output_dir + 'main.adb', 'w') as f:
-            f.write(tmp.render(ctx=context, inlined_prefix_nodes = RascalPass.inlined_prefix_nodes, chained_constructor_fun = chained_constructor_fun, field_with_chained_constructor =  field_with_chained_constructor, get_chained_constructor= get_chained_constructor))
+            f.write(tmp.render(ctx=context, inlined_prefix_nodes = RascalPass.inlined_prefix_nodes, chained_constructor_fun = chained_constructor_fun, field_with_chained_constructor =  field_with_chained_constructor, get_chained_constructor= get_chained_constructor, decl_functions=decl_functions))
 
 
 class DotPass(langkit.passes.AbstractPass):
