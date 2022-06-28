@@ -43,7 +43,7 @@ void compute_cyclomatic_complexity(Base_Formal_Param_Holder Subp_Spec, Stmt Stmt
             c += 1;
     }
 
-    str fun_name = getFirstFrom(Subp_Spec.F_Subp_Name).F_Name.content;
+    str fun_name = head(Subp_Spec.F_Subp_Name).F_Name.content;
     println("<fun_name> : <c>");
 }
 

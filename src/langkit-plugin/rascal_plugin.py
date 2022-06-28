@@ -115,7 +115,7 @@ class RascalConstructor:
             # ValueIO.readTextValueFile can't read Maybe field, we are using set instead
             # To remove when the bug is fixed
             # https://github.com/usethesource/rascal/issues/1615
-            field_type_name = f"set[{RascalDataTypes.get_associated_rascal_type(field_type)}]"
+            field_type_name = f"Maybe[{RascalDataTypes.get_associated_rascal_type(field_type)}]"
 
         else:
             if field.precise_types.minimal_common_type.is_root_node:
@@ -135,8 +135,8 @@ class RascalConstructor:
             else:
                 field_type_name = RascalDataTypes.get_associated_rascal_type(field_type)
 
-        if field.is_optional and not field_type.is_bool_node:
-            field_type_name = "set[" + field_type_name + "]" # optional fields can be null
+            if field.is_optional:
+                field_type_name = "Maybe[" + field_type_name + "]" # optional fields can be null
 
         return field_type_name
 

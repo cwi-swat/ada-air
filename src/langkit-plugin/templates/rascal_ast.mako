@@ -17,9 +17,8 @@ module lang::ada::AST
 
 import IO;
 import List;
-import Set;
-import util::Maybe;
 alias Ada_Node = node;
+alias Maybe[&T] = list[&T];
 
 
 data Stmt_Or_Decl(loc src=|unknown:///|) = decl_kind(Decl As_Decl) | stmt_kind(Stmt As_Stmt);

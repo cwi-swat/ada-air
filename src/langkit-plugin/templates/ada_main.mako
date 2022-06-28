@@ -62,21 +62,21 @@ procedure Main is
         use Ada.Characters.Latin_1;
         Tab : constant String := (if Pretty_Print then "|  " else "");
         Prefix : constant String := (if Pretty_Print then LF & (Indent * Tab) else "");
-        Just : constant String := (if IsOptional then "{" else "");
-        End_Just : constant String := (if IsOptional then "}" else "");
+        Just : constant String := (if IsOptional then "[" else "");
+        End_Just : constant String := (if IsOptional then "]" else "");
         src : constant String := (if not N.Is_Null then "src=" & To_Rascal_Sloc_Range(N) else "");
     begin
         if N.Is_Null then
-            return Prefix & "{}";
+            return Prefix & "[]";
         end if;
     case N.Kind is
         % for n in ctx.astnode_types:
             % if not n.abstract:
         when LALCO.${n.ada_kind_name} =>
-                % if n.is_list or n.is_root_list_type:
+                % if n.is_list or n.is_root_list_type: # list can't be optional
             declare
                 use Ada.Strings.Unbounded;
-                s : Unbounded_String := To_Unbounded_String (Prefix & Just);
+                s : Unbounded_String := To_Unbounded_String (Prefix);
                 IsEmpty : Boolean := True;
             begin
                 % if get_chained_constructor(n) is not None:
@@ -103,15 +103,14 @@ procedure Main is
                 if Need_Chained_Constructor then
                     Append (s, "," & src & ")");
                 end if;
-                % endif
-                Append(s, End_Just);
+                    % endif
                 return To_String (s);
             end;
                 % elif n.public_type.api_name.lower.endswith("_absent"):
-            return Prefix & "{}";  -- always Maybe
+            return Prefix & "[]";  -- always Maybe
 
                 % elif n.public_type.api_name.lower.endswith("_present"):          
-            return Prefix & "{${n.base.public_type.api_name.lower}(" & src & ")}"; --  always Maybe
+            return Prefix & "[${n.base.public_type.api_name.lower}(" & src & ")]"; --  always Maybe
 
                 % elif n.public_type.api_name.lower in inlined_prefix_nodes:
             declare
