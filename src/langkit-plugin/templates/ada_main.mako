@@ -78,14 +78,15 @@ procedure Main is
       return To_String(Unb);
    end Lower_Name_With_Underscore;
    
-    function Export_AST_To_Rascal (N : LAL.Ada_Node'Class; Indent : Natural := 0; Pretty_Print : Boolean := True; IsOptional : Boolean := False; Need_Chained_Constructor : Boolean := False) return String is
+    function Export_AST_To_Rascal (N : LAL.Ada_Node'Class; Indent : Natural := 0; Pretty_Print : Boolean := True; IsOptional : Boolean := False; Need_Chained_Constructor : Boolean := False) return Ada.Strings.Unbounded.Unbounded_String is
         use Ada.Strings.Fixed;
         use Ada.Characters.Latin_1;
-        Tab : constant String := (if Pretty_Print then "|  " else "");
-        Prefix : constant String := (if Pretty_Print then LF & (Indent * Tab) else "");
-        Just : constant String := (if IsOptional then "[" else "");
-        End_Just : constant String := (if IsOptional then "]" else "");
-        src : constant String := (if not N.Is_Null then "src=" & To_Rascal_Sloc_Range(N) else "");
+        use Ada.Strings.Unbounded;
+        Tab : Unbounded_String := To_Unbounded_String ((if Pretty_Print then "|  " else ""));
+        Prefix : Unbounded_String := (if Pretty_Print then LF & (Indent * Tab) else Null_Unbounded_String);
+        Just : Unbounded_String := To_Unbounded_String ((if IsOptional then "[" else ""));
+        End_Just : Unbounded_String := To_Unbounded_String ((if IsOptional then "]" else ""));
+        src : Unbounded_String := To_Unbounded_String ((if not N.Is_Null then "src=" & To_Rascal_Sloc_Range(N) else ""));
     begin
         if N.Is_Null then
             return Prefix & "[]";
@@ -97,7 +98,7 @@ procedure Main is
                 % if n.is_list or n.is_root_list_type: # list can't be optional
             declare
                 use Ada.Strings.Unbounded;
-                s : Unbounded_String := To_Unbounded_String (Prefix);
+                s : Unbounded_String := Prefix;
                 IsEmpty : Boolean := True;
             begin
                     % if get_chained_constructor(n) is not None:
@@ -125,7 +126,7 @@ procedure Main is
                     Append (s, "," & src & ")");
                 end if;
                     % endif
-                return To_String (s);
+                return s;
             end;
                 % elif n.public_type.api_name.lower.endswith("_absent"):
             return Prefix & "[]";  -- always Maybe
@@ -214,9 +215,9 @@ begin
         end loop;
     else
         Ada.Text_IO.Create (F, Ada.Text_IO.Out_File, Out_File_Name);
-        Ada.Text_IO.Put_Line (F,Export_AST_To_Rascal (N            => Unit.Root,
+        Ada.Text_IO.Put_Line (F,Ada.Strings.Unbounded.To_String (Export_AST_To_Rascal (N            => Unit.Root,
                                                     Indent       => 0,
-                                                    Pretty_Print => Pretty_Print));
+                                                    Pretty_Print => Pretty_Print)));
 
         Ada.Text_IO.Close (F);
     end if;
