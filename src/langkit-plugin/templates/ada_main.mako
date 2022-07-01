@@ -139,13 +139,27 @@ procedure Main is
                 op_full_name  : constant String := N.As_${n.public_type.api_name.camel_with_underscores}.F_Op.Kind_Name;
                 op_name       : constant String := Lower_Name_With_Underscore (op_full_name(3..op_full_name'Last));
             begin
-                return Prefix & Just & "${inlined_prefix_nodes[n.public_type.api_name.lower]}" & op_name & "(" &\
-                    % for field in n.get_parse_fields(include_inherited=True):
-                        % if field.api_name.lower != "f_op":
-                Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}) & ", " &
-                        % endif
-                    % endfor
-                Prefix & src & ")" & End_Just;
+                    % if get_chained_constructor(n) is not None:
+                if Need_Chained_Constructor then
+                    return Prefix & Just & "${get_chained_constructor(n)}" & "(" & "${inlined_prefix_nodes[n.public_type.api_name.lower]}" & op_name & "(" &\
+                        % for field in n.get_parse_fields(include_inherited=True):
+                            % if field.api_name.lower != "f_op":
+                    Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}) & ", " &
+                            % endif
+                        % endfor
+                    Prefix & src & ")" & ", " & src & ")" & End_Just;
+                else
+                    % endif
+                    return Prefix & Just & "${inlined_prefix_nodes[n.public_type.api_name.lower]}" & op_name & "(" &\
+                        % for field in n.get_parse_fields(include_inherited=True):
+                            % if field.api_name.lower != "f_op":
+                    Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}) & ", " &
+                            % endif
+                        % endfor
+                    Prefix & src & ")" & End_Just;
+                    % if get_chained_constructor(n) is not None:
+                end if;
+                    % endif
             end;
 
                 % else:
