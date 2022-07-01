@@ -19,30 +19,16 @@ module lang::ada::ImportAST
 import lang::ada::AST;
 import ValueIO;
 import util::ShellExec;
+import util::UUID;
+import util::Math;
+import util::SystemAPI;
 
 Compilation_Unit importAdaAST(loc file) {
-    // Current dir must be ada-air/src/main/rascal/lang/ada
-    loc gprfile = |cwd:///| + "../../../ada/lal_to_rascal.gpr";
-    loc exe = |cwd:///| + "../../../ada/obj/main.exe";
-    loc out = |cwd:///| + "../../../out.txt";
-
-    // work-around: [1..] skip the first slash added by .path
-    // "/../../../out.txt" -> "../../../out.txt"
-    // https://github.com/usethesource/rascal/issues/1613
-    exec("gprbuild", args=["-p", gprfile.path[1..]]);
-    exec(exe.path[1..], args=[file.path, out.path[1..]]);
-    return readTextValueFile(#Compilation_Unit, out);
-}
-
-Compilation_Unit importAdaAST(loc file, loc ada_air, str suffix="") {
-    // On Windows : the 2 locations must be absolute paths witouht drive name
-    // https://github.com/usethesource/rascal/issues/1613
-    loc gprfile = ada_air + "/src/main/ada/lal_to_rascal.gpr";
+    loc ada_air = |file:///| + getSystemEnvironment()["ADA_AIR"];
     loc exe = ada_air + "/src/main/ada/obj/main.exe";
-    str out_file = "/src/main/out" + suffix + ".txt";
-    loc out = ada_air + out_file;
+    str out_file = getSystemEnvironment()["TMP"] + "/out" + toString(uuidi()) + ".txt";
+    loc out = |file:///| + out_file;
 
-    //exec("gprbuild", args=[gprfile.path[1..]]);
     exec(exe.path[1..], args=[file.path[1..], out.path[1..]]);
     return readTextValueFile(#Compilation_Unit, out);
 }

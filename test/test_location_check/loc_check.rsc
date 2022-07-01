@@ -43,7 +43,7 @@ bool allNodesAreOrdered(node haystack) {
 
 void main(list[str] args=[]) {
     loc ada_air = |file:///| + getSystemEnvironment()["ADA_AIR"];
-    Compilation_Unit U = importAdaAST(ada_air + "/test/test_location_check/test.adb", ada_air);
+    Compilation_Unit U = importAdaAST(ada_air + "/test/test_location_check/test.adb");
     println(allNodesHaveASource(U));
     println(allNodesAreOrdered(U));
 }

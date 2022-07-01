@@ -24,12 +24,11 @@ import String;
 
 
 void main(list[str] args=[]) {
-    loc ada_air = |file:///| + getSystemEnvironment()["ADA_AIR"];
     loc lib_dir = |file:///| + getSystemEnvironment()[args[0]];
     Compilation_Unit U;
     for(loc f <- lib_dir.ls) {
         if(endsWith(f.path,".ads") || endsWith(f.path,".adb")) {
-            U = importAdaAST(f, ada_air, suffix=args[1]);
+            U = importAdaAST(f);
         }
     }
 }
