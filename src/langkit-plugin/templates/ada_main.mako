@@ -187,7 +187,7 @@ procedure Main is
                 Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}) & ", " &
                         % endfor
                         % if get_decl(n) is not None:
-                Prefix & src & ")," & src & ", " & To_String(decl) & ")" & End_Just;
+                Prefix & src & ", " & To_String(decl) & ")," & src & ")" & End_Just;
                         % else:
                 Prefix & src & ")," & src & ")" & End_Just;
                         % endif
