@@ -29,7 +29,7 @@ void main(list[str] args=[]) {
     Compilation_Unit U;
     for(loc f <- lib_dir.ls) {
         if(endsWith(f.path,".ads") || endsWith(f.path,".adb")) {
-            U = importAdaAST(f, ada_air, preffix=args[1]);
+            U = importAdaAST(f, ada_air, suffix=args[1]);
         }
     }
 }
