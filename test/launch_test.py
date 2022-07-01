@@ -12,9 +12,8 @@ ENDC = '\033[m'
 GREEN = '\033[32m'
 
 libs = ["libadalang", "xmlada", "gnatcoll", "langkit_support", "aws"]
-rascal_jar = None
 print_lock = threading.Lock()
-threads = []
+tests = []
 
 if os.name == 'nt' and platform.release() == '10' and platform.version() >= '10.0.14393':
     # Fix ANSI color in Windows 10 version 10.0.14393 (Windows Anniversary Update)
@@ -40,43 +39,62 @@ class UnexpectedOutput(Exception):
         title = " Unexpected output "
         return 10*"-" + title + 10*"-"+"\n"+self.message+"\n"+(len(title)+20)*"-"
 
-
-def run_rascal(filename, args):
-    proc = subprocess.run(['java', '-Xmx1G', '-Xss32m', '-jar', rascal_jar, filename, ('--args' if len(args)>0 else '')] + args,  capture_output=True, shell=True)
-    out = proc.stdout.decode("utf8")
-    err = proc.stderr.decode("utf8")
-    if proc.returncode != 0:
-        raise RascalError(err)
-    return out
-
 def clean(s):
     return re.sub(r"[\n\t\s\r]*", "", s)
 
-def run_test(dir, filename, args=[]):
-    out = run_rascal(dir + "/" + filename, args + [str(threading.get_native_id())])
-    with open(dir + '/expected.txt') as f:
-        expected = clean(f.read())
-        if clean(out) != expected:
-            raise UnexpectedOutput(out)
+class Test:
 
-def print_output(name, color, res):
-    max = 50 - len(name)
-    padding = max * "." + " "
-    with print_lock:
-        print(name + " " + padding + color + res + ENDC + "\n")
-        sys.stdout.flush()
+    rascal_jar = None
+
+    def __init__(self, test_name, test_dir) -> None:
+        self.test_name = test_name
+        self.test_dir = test_dir
+        self.success = None
+        self.th = None
+        pass
+
+    def __run_rascal(self, rascal_file, args):
+        proc = subprocess.run(['java', '-Xmx1G', '-Xss32m', '-jar', Test.rascal_jar, rascal_file, ('--args' if len(args)>0 else '')] + args,  capture_output=True, shell=True)
+        out = proc.stdout.decode("utf8")
+        err = proc.stderr.decode("utf8")
+        if proc.returncode != 0:
+            raise RascalError(err)
+        return out
 
 
-def test(test_name, test_dir, rascal_file, args=[]):
-    try:
-        run_test(test_dir, rascal_file, args)
-        print_output(test_name, GREEN, "OK")
-        return True
-    except (UnexpectedOutput, RascalError) as e:
-        with print_lock:   
-            print(str(e))
-        print_output(test_name, RED, "KO")
-        return False
+    def __check_output(self, output):
+        with open(self.test_dir + '/expected.txt') as f:
+            expected = clean(f.read())
+            if clean(output) != expected:
+                raise UnexpectedOutput(output)
+
+    def __print_output(self, color, res):
+        max = 50 - len(self.test_name)
+        padding = max * "." + " "
+        with print_lock:
+            print(self.test_name + " " + padding + color + res + ENDC + "\n")
+            sys.stdout.flush()
+
+    def run(self, rascal_file, args):
+        try:
+            out = self.__run_rascal(self.test_dir + "/" + rascal_file, args)
+            self.__check_output(out)
+            self.__print_output(GREEN, "OK")
+            self.success = True
+        except (UnexpectedOutput, RascalError) as e:
+            with print_lock:   
+                print(str(e))
+            self.__print_output(RED, "KO")
+            self.success = False
+    
+    def setThread(self, th):
+        self.th = th
+
+    def getResult(self):
+        assert self.th is not None
+        self.th.join()
+        assert self.success is not None
+        return self.success
 
 def main():
     failledTest = 0
@@ -85,19 +103,18 @@ def main():
     test_dir = os.path.dirname(__file__)
     os.chdir(test_dir)
     dirs = os.listdir()
-    succes = True
+    setup = True
     if "RASCAL_JAR" not in os.environ:
         print("RASCAL_JAR not set")
-        succes = False
+        setup = False
     else:
-        global rascal_jar
-        rascal_jar = os.environ["RASCAL_JAR"]
+        Test.rascal_jar = os.environ["RASCAL_JAR"]
 
     if "ADA_AIR" not in os.environ:
-        succes = False
+        setup = False
         print("ADA_AIR not set")
 
-    if succes:
+    if setup:
         for test_dir in dirs:
             if os.path.isdir(test_dir) and test_dir.startswith("test_"):
                 if test_dir == "test_parse":                
@@ -108,13 +125,11 @@ def main():
                             test_name = test_dir + " " + lib
                             for file in os.listdir(test_dir):
                                 if os.path.isfile(test_dir +"/"+ file) and file.endswith(".rsc"):
-                                    t = threading.Thread(target=test, args=(test_name, test_dir, file, [lib_path]))
-                                    threads.append(t)
-                                    if not t.start():                                   
-                                        failledTest += 1
-                                    else:
-                                        successfulTest += 1
-                                    break
+                                    test = Test(test_name, test_dir)
+                                    th = threading.Thread(target=test.run, args=(file, [lib_path]))
+                                    test.setThread(th)
+                                    tests.append(test)
+                                    th.start()
                         else:                    
                             print(f"skipping {lib}")
                             skippedTest += 1
@@ -122,18 +137,23 @@ def main():
                 else:
                     for file in os.listdir(test_dir):
                         if os.path.isfile(test_dir +"/"+ file) and file.endswith(".rsc"):
-                            if not test(test_dir, test_dir, file):
-                                failledTest += 1
-                            else:
-                                successfulTest += 1
-                            break
-    for t in threads:
-        t.join()
-    total = successfulTest + failledTest
-    print(10*"-" + " Result " + 10*"-")
-    print(f"{successfulTest}/{total}")
-    print(f"{skippedTest} tests skipped")
-    if failledTest != 0:
+                            test = Test(test_dir, test_dir)
+                            th = threading.Thread(target=test.run, args=(file, []))
+                            test.setThread(th)
+                            tests.append(test)
+                            th.start()
+        for t in tests:
+            if t.getResult():
+                successfulTest += 1
+            else:
+                failledTest += 1
+
+        total = successfulTest + failledTest
+        print(10*"-" + " Result " + 10*"-")
+        print(f"{successfulTest}/{total}")
+        print(f"{skippedTest} tests skipped")
+
+    if failledTest != 0 or not setup:
         sys.exit(1)
 
 
