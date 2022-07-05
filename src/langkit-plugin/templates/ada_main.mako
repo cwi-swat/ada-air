@@ -78,21 +78,19 @@ procedure Main is
       return To_String(Unb);
    end Lower_Name_With_Underscore;
    
-    function Export_AST_To_Rascal (N : LAL.Ada_Node'Class; Indent : Natural := 0; Pretty_Print : Boolean := True; IsOptional : Boolean := False; Need_Chained_Constructor : Boolean := False) return Ada.Strings.Unbounded.Unbounded_String is
-        use Ada.Strings.Fixed;
+    procedure Export_AST_To_Rascal (Result : in out Ada.Strings.Unbounded.Unbounded_String; N : LAL.Ada_Node'Class; Indent : Natural := 0; Pretty_Print : Boolean := True; IsOptional : Boolean := False; Need_Chained_Constructor : Boolean := False) is
         use Ada.Characters.Latin_1;
         use Ada.Strings.Unbounded;
-        Result : Unbounded_String := Null_Unbounded_String;
-        Tab : Unbounded_String := To_Unbounded_String ((if Pretty_Print then "|  " else ""));
-        Prefix : Unbounded_String := (if Pretty_Print then LF & (Indent * Tab) else Null_Unbounded_String);
-        Just : Unbounded_String := To_Unbounded_String ((if IsOptional then "[" else ""));
-        End_Just : Unbounded_String := To_Unbounded_String ((if IsOptional then "]" else ""));
-        src : Unbounded_String := To_Unbounded_String ((if not N.Is_Null then "src=" & To_Rascal_Sloc_Range(N) else ""));
+        Tab : constant string := (if Pretty_Print then "|  " else " ");
+        Prefix : constant string := " "; --(if Pretty_Print then LF & (Indent * Tab) else Null_Unbounded_String);
+        Just : constant string := (if IsOptional then "[" else " ");
+        End_Just : constant string := (if IsOptional then "]" else " ");
+        src : constant string := (if not N.Is_Null then "src=" & To_Rascal_Sloc_Range(N) else " ");
     begin
         if N.Is_Null then
             Append (Result, Prefix);
             Append (Result, "[]");
-            return Result;  
+            return;
         end if;
     case N.Kind is
         % for n in ctx.astnode_types:
@@ -111,10 +109,10 @@ procedure Main is
                 Append(Result, "[");
                 for node of N.As_${n.public_type.api_name.camel_with_underscores} loop
                     % if get_chained_constructor(n) is not None:
-                    Append (Result, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False, False));
+                    Export_AST_To_Rascal (Result, node, Indent + 1, Pretty_Print, False, False);
                     Append (Result, To_Unbounded_String (",")); -- no list of maybe
                     % else:
-                    Append (Result, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False, Need_Chained_Constructor));
+                    Export_AST_To_Rascal (Result, node, Indent + 1, Pretty_Print, False, Need_Chained_Constructor);
                     Append (Result, To_Unbounded_String (",")); -- no list of maybe
                     % endif
                     IsEmpty := False;
@@ -133,19 +131,19 @@ procedure Main is
                     Append (Result, ")");
                 end if;
                     % endif
-                return Result;
+                return;
             end;
                 % elif n.public_type.api_name.lower.endswith("_absent"):
             Append (Result, Prefix);
             Append (Result, "[]");
-            return Result;  -- always Maybe
+            return;  -- always Maybe
 
                 % elif n.public_type.api_name.lower.endswith("_present"):          
             Append (Result, Prefix);
             Append (Result, "[${n.base.public_type.api_name.lower}(");
             Append (Result, src);
             Append (Result, ")]");
-            return Result; --  always Maybe
+            return; --  always Maybe
 
                 % elif n.public_type.api_name.lower in inlined_prefix_nodes:
             declare
@@ -163,7 +161,7 @@ procedure Main is
                     Append (Result, "(");
                         % for field in n.get_parse_fields(include_inherited=True):
                             % if field.api_name.lower != "f_op":
-                    Append (Result, Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}));
+                    Export_AST_To_Rascal (Result, N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional});
                     Append (Result, ", ");
                             % endif
                         % endfor
@@ -173,7 +171,7 @@ procedure Main is
                     Append (Result, src);
                     Append (Result, ")");
                     Append (Result, End_Just);
-                    return Result;
+                    return;
                 else
                     % endif
                     Append (Result, Prefix);
@@ -183,7 +181,7 @@ procedure Main is
                     Append (Result, "(");
                         % for field in n.get_parse_fields(include_inherited=True):
                             % if field.api_name.lower != "f_op":
-                    Append (Result, Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}));
+                    Export_AST_To_Rascal (Result, N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional});
                     Append (Result, ", ");
                             % endif
                         % endfor
@@ -191,7 +189,7 @@ procedure Main is
                     Append (Result, src);
                     Append (Result, ")");
                     Append (Result, End_Just);
-                    return Result;
+                    return;
                     % if get_chained_constructor(n) is not None:
                 end if;
                     % endif
@@ -225,7 +223,7 @@ procedure Main is
                 Append (Result,  ", ");
                         % endif
                         % for field in n.get_parse_fields(include_inherited=True):                
-                Append (Result, Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}));
+                Export_AST_To_Rascal (Result, N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor});
                 Append (Result, ", ");
                         % endfor
                         % if get_decl(n) is not None:
@@ -237,7 +235,7 @@ procedure Main is
                 Append (Result, src);
                 Append (Result, ")");
                 Append (Result, End_Just);
-                return Result;
+                return;
                         % else:
                 Append (Result, Prefix);
                 Append (Result, src);
@@ -245,7 +243,7 @@ procedure Main is
                 Append (Result, src);
                 Append (Result,  ")");
                 Append (Result, End_Just);
-                return Result;
+                return;
                         % endif
             else
                     % endif
@@ -259,7 +257,7 @@ procedure Main is
                 Append (Result, ", ");
                     % endif
                     % for field in n.get_parse_fields(include_inherited=True):
-                Append (Result, Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}));
+                Export_AST_To_Rascal (Result, N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor});
                 Append (Result, ", ");
                     % endfor
                     % if get_decl(n) is not None:
@@ -269,13 +267,13 @@ procedure Main is
                 Append (Result, decl);
                 Append (Result, ")");
                 Append (Result, End_Just);
-                return Result;
+                return;
                     % else:
                 Append (Result, Prefix);
                 Append (Result, src);
                 Append (Result, ")");
                 Append (Result, End_Just);
-                return Result;
+                return;
                     % endif
                     % if get_chained_constructor(n) is not None:
             end if;
@@ -294,6 +292,7 @@ procedure Main is
     Out_File_Name : constant String := Ada.Command_Line.Argument (2);
     Pretty_Print : constant Boolean := Ada.Command_Line.Argument_Count > 2 and then Ada.Command_Line.Argument (3) = "-P";
     F       : Ada.Text_IO.File_Type;
+    Result : Ada.Strings.Unbounded.Unbounded_String := Ada.Strings.Unbounded.Null_Unbounded_String;
 begin
     if Unit.Has_Diagnostics then
         for D of Unit.Diagnostics loop
@@ -301,9 +300,11 @@ begin
         end loop;
     else
         Ada.Text_IO.Create (F, Ada.Text_IO.Out_File, Out_File_Name);
-        Ada.Text_IO.Put_Line (F,Ada.Strings.Unbounded.To_String (Export_AST_To_Rascal (N            => Unit.Root,
-                                                    Indent       => 0,
-                                                    Pretty_Print => Pretty_Print)));
+        Export_AST_To_Rascal (Result       => Result,
+                              N            => Unit.Root,
+                              Indent       => 0,
+                              Pretty_Print => Pretty_Print);
+        Ada.Text_IO.Put_Line (F,Ada.Strings.Unbounded.To_String (Result));
 
         Ada.Text_IO.Close (F);
     end if;
