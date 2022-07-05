@@ -82,6 +82,7 @@ procedure Main is
         use Ada.Strings.Fixed;
         use Ada.Characters.Latin_1;
         use Ada.Strings.Unbounded;
+        Result : Unbounded_String := Null_Unbounded_String;
         Tab : Unbounded_String := To_Unbounded_String ((if Pretty_Print then "|  " else ""));
         Prefix : Unbounded_String := (if Pretty_Print then LF & (Indent * Tab) else Null_Unbounded_String);
         Just : Unbounded_String := To_Unbounded_String ((if IsOptional then "[" else ""));
@@ -89,7 +90,9 @@ procedure Main is
         src : Unbounded_String := To_Unbounded_String ((if not N.Is_Null then "src=" & To_Rascal_Sloc_Range(N) else ""));
     begin
         if N.Is_Null then
-            return Prefix & "[]";
+            Append (Result, Prefix);
+            Append (Result, "[]");
+            return Result;  
         end if;
     case N.Kind is
         % for n in ctx.astnode_types:
@@ -97,42 +100,52 @@ procedure Main is
         when LALCO.${n.ada_kind_name} =>
                 % if n.is_list or n.is_root_list_type: # list can't be optional
             declare
-                use Ada.Strings.Unbounded;
-                s : Unbounded_String := Prefix;
                 IsEmpty : Boolean := True;
             begin
+                Append (Result, Prefix);
                     % if get_chained_constructor(n) is not None:
                 if Need_Chained_Constructor then
-                    Append (s, "${get_chained_constructor(n)}(");
+                    Append (Result, "${get_chained_constructor(n)}(");
                 end if;
                     % endif
-                Append(s, "[");
+                Append(Result, "[");
                 for node of N.As_${n.public_type.api_name.camel_with_underscores} loop
                     % if get_chained_constructor(n) is not None:
-                    Append (s, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False, False) & ","); -- no list of maybe
+                    Append (Result, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False, False));
+                    Append (Result, To_Unbounded_String (",")); -- no list of maybe
                     % else:
-                    Append (s, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False, Need_Chained_Constructor) & ","); -- no list of maybe
+                    Append (Result, Export_AST_To_Rascal (node, Indent + 1, Pretty_Print, False, Need_Chained_Constructor));
+                    Append (Result, To_Unbounded_String (",")); -- no list of maybe
                     % endif
                     IsEmpty := False;
                 end loop;
                 if not IsEmpty then
-                    Replace_Element (s, Length(s), ' '); -- removing last comma
-                    Append (s, Prefix & "]");
+                    Replace_Element (Result, Length(Result), ' '); -- removing last comma
+                    Append (Result, Prefix);
+                    Append (Result, "]");
                 else
-                    Append (s, "]");
+                    Append (Result, "]");
                 end if;
                     % if get_chained_constructor(n) is not None:
                 if Need_Chained_Constructor then
-                    Append (s, "," & src & ")");
+                    Append (Result, ",");
+                    Append (Result, src);
+                    Append (Result, ")");
                 end if;
                     % endif
-                return s;
+                return Result;
             end;
                 % elif n.public_type.api_name.lower.endswith("_absent"):
-            return Prefix & "[]";  -- always Maybe
+            Append (Result, Prefix);
+            Append (Result, "[]");
+            return Result;  -- always Maybe
 
                 % elif n.public_type.api_name.lower.endswith("_present"):          
-            return Prefix & "[${n.base.public_type.api_name.lower}(" & src & ")]"; --  always Maybe
+            Append (Result, Prefix);
+            Append (Result, "[${n.base.public_type.api_name.lower}(");
+            Append (Result, src);
+            Append (Result, ")]");
+            return Result; --  always Maybe
 
                 % elif n.public_type.api_name.lower in inlined_prefix_nodes:
             declare
@@ -141,22 +154,44 @@ procedure Main is
             begin
                     % if get_chained_constructor(n) is not None:
                 if Need_Chained_Constructor then
-                    return Prefix & Just & "${get_chained_constructor(n)}" & "(" & "${inlined_prefix_nodes[n.public_type.api_name.lower]}" & op_name & "(" &\
+                    Append (Result, Prefix);
+                    Append (Result, Just);
+                    Append (Result, "${get_chained_constructor(n)}");
+                    Append (Result, "(");
+                    Append (Result, "${inlined_prefix_nodes[n.public_type.api_name.lower]}");
+                    Append (Result, op_name);
+                    Append (Result, "(");
                         % for field in n.get_parse_fields(include_inherited=True):
                             % if field.api_name.lower != "f_op":
-                    Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}) & ", " &
+                    Append (Result, Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}));
+                    Append (Result, ", ");
                             % endif
                         % endfor
-                    Prefix & src & ")" & ", " & src & ")" & End_Just;
+                    Append (Result, Prefix);
+                    Append (Result, src);
+                    Append (Result, "), ");
+                    Append (Result, src);
+                    Append (Result, ")");
+                    Append (Result, End_Just);
+                    return Result;
                 else
                     % endif
-                    return Prefix & Just & "${inlined_prefix_nodes[n.public_type.api_name.lower]}" & op_name & "(" &\
+                    Append (Result, Prefix);
+                    Append (Result, Just);
+                    Append (Result, "${inlined_prefix_nodes[n.public_type.api_name.lower]}");
+                    Append (Result, op_name);
+                    Append (Result, "(");
                         % for field in n.get_parse_fields(include_inherited=True):
                             % if field.api_name.lower != "f_op":
-                    Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}) & ", " &
+                    Append (Result, Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}));
+                    Append (Result, ", ");
                             % endif
                         % endfor
-                    Prefix & src & ")" & End_Just;
+                    Append (Result, Prefix);
+                    Append (Result, src);
+                    Append (Result, ")");
+                    Append (Result, End_Just);
+                    return Result;
                     % if get_chained_constructor(n) is not None:
                 end if;
                     % endif
@@ -166,7 +201,6 @@ procedure Main is
                     % if get_chained_constructor(n) is not None:
                         % if get_decl(n) is not None:
             declare
-                use Ada.Strings.Unbounded;
                 decl : Unbounded_String;
             begin
                 begin
@@ -179,31 +213,69 @@ procedure Main is
                 end;
                         % endif
             if Need_Chained_Constructor then
-                return Prefix & Just & "${get_chained_constructor(n)}" & "(" & "${n.public_type.api_name.lower} (" &
+                Append (Result, Prefix);
+                Append (Result, Just);
+                Append (Result, "${get_chained_constructor(n)}");
+                Append (Result, "(");
+                Append (Result, "${n.public_type.api_name.lower} (");
                         % if n.is_token_node:
-                Prefix & Tab & """" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """" & ", " &
+                Append (Result, Prefix);
+                Append (Result, Tab);
+                Append (Result, """" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """");
+                Append (Result,  ", ");
                         % endif
                         % for field in n.get_parse_fields(include_inherited=True):                
-                Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}) & ", " &
+                Append (Result, Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}));
+                Append (Result, ", ");
                         % endfor
                         % if get_decl(n) is not None:
-                Prefix & src & ", " & To_String(decl) & ")," & src & ")" & End_Just;
+                Append (Result, Prefix);
+                Append (Result, src);
+                Append (Result, ", ");
+                Append (Result, decl);
+                Append (Result, "),");
+                Append (Result, src);
+                Append (Result, ")");
+                Append (Result, End_Just);
+                return Result;
                         % else:
-                Prefix & src & ")," & src & ")" & End_Just;
+                Append (Result, Prefix);
+                Append (Result, src);
+                Append (Result, "),");
+                Append (Result, src);
+                Append (Result,  ")");
+                Append (Result, End_Just);
+                return Result;
                         % endif
             else
                     % endif
-                return Prefix & Just & "${n.public_type.api_name.lower} (" &
+                Append (Result, Prefix);
+                Append (Result, Just);
+                Append (Result, "${n.public_type.api_name.lower} (");
                     % if n.is_token_node:
-                Prefix & Tab & """" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """" & ", " &
+                Append (Result, Prefix);
+                Append (Result, Tab);
+                Append (Result,"""" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """");
+                Append (Result, ", ");
                     % endif
                     % for field in n.get_parse_fields(include_inherited=True):
-                Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}) & ", " &
+                Append (Result, Export_AST_To_Rascal (N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor}));
+                Append (Result, ", ");
                     % endfor
                     % if get_decl(n) is not None:
-                Prefix & src & ", " & To_String(decl) & ")" & End_Just;
+                Append (Result, Prefix);
+                Append (Result, src);
+                Append (Result,", ");
+                Append (Result, decl);
+                Append (Result, ")");
+                Append (Result, End_Just);
+                return Result;
                     % else:
-                Prefix & src & ")" & End_Just;
+                Append (Result, Prefix);
+                Append (Result, src);
+                Append (Result, ")");
+                Append (Result, End_Just);
+                return Result;
                     % endif
                     % if get_chained_constructor(n) is not None:
             end if;
