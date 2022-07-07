@@ -21,14 +21,29 @@ import lang::ada::ImportAST;
 import IO;
 import util::SystemAPI;
 import String;
+import List;
+import util::FileSystem;
 
-
+/*
+void recursive_visit(list[loc] l) {
+   for(loc f <- l) {
+      if(endsWith(f.path,".ads") || endsWith(f.path,".adb")) {
+         U = importAdaAST(f);
+      }
+      else if (isDirectory(f)) {
+         recursive_visit (f);
+      }
+   }
+}
+*/
 void main(list[str] args=[]) {
     loc lib_dir = |file:///| + getSystemEnvironment()[args[0]];
     Compilation_Unit U;
-    for(loc f <- lib_dir.ls) {
-        if(endsWith(f.path,".ads") || endsWith(f.path,".adb")) {
-            U = importAdaAST(f);
-        }
+    for(loc f <- visibleFiles(lib_dir)) {
+      if(endsWith(f.path,".ads") || endsWith(f.path,".adb")) {
+         U = importAdaAST(f);
+         //println(f.path);
+      }
     }
+    //recursive_visit(lib_dir.ls);
 }

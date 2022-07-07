@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+from multiprocessing.connection import wait
 import subprocess
 import os
 import sys
@@ -11,8 +12,10 @@ RED = '\033[31m'
 ENDC = '\033[m'
 GREEN = '\033[32m'
 
-libs = ["libadalang", "xmlada", "gnatcoll", "langkit_support", "aws"]
+libs = ["libadalang", "xmlada", "gnatcoll", "langkit_support", "aws", "ada_drivers_library"]
+# new lib : gnatstudio, gtkada, cudada, AdaDoom3, tamp, sdlada, ada-crypto-library, HAC
 print_lock = threading.Lock()
+queue_lock = threading.Lock()
 tests = []
 
 if os.name == 'nt' and platform.release() == '10' and platform.version() >= '10.0.14393':
@@ -39,26 +42,68 @@ class UnexpectedOutput(Exception):
         title = " Unexpected output "
         return 10*"-" + title + 10*"-"+"\n"+self.message+"\n"+(len(title)+20)*"-"
 
+
+class TestQueue:
+
+    def __init__(self, size) -> None:
+        self.size = size
+        self.all_tests= []
+        self.running_tests = []
+        self.waiting_tests = []
+
+    def add(self, test):
+        print(test.test_name + " added")
+        with queue_lock:
+            self.all_tests.append(test)
+            if len(self.running_tests) < self.size:
+                self.running_tests.append (test)
+                test.start()
+            else:
+                self.waiting_tests.append (test)
+
+    def remove(self, test):
+        print(test.test_name + " removed")
+        with queue_lock:
+            assert test in self.running_tests
+            self.running_tests.remove(test)
+            if len(self.waiting_tests) > 0:
+                t = self.waiting_tests.pop(0)
+                self.running_tests.append(t)
+                t.start()
+
+    def get_all_tests(self):
+        return self.all_tests
+
+    def wait(self):
+        while len(self.waiting_tests) > 0:
+            for t in self.running_tests:
+                t.join()
+        for t in self.running_tests:
+            t.join()
+
 def clean(s):
     return re.sub(r"[\n\t\s\r]*", "", s)
+
 
 class Test:
 
     rascal_jar = None
 
-    def __init__(self, test_name, test_dir) -> None:
+    def __init__(self, test_name, test_dir, threadQueue, rascal_file, args) -> None:
         self.test_name = test_name
         self.test_dir = test_dir
         self.success = None
-        self.th = None
+        self.th = threading.Thread(target=self.run, args=(rascal_file, args))
+        self.threadQueue = threadQueue
         pass
 
+
     def __run_rascal(self, rascal_file, args):
-        proc = subprocess.run(['java', '-Xmx1G', '-Xss32m', '-jar', Test.rascal_jar, rascal_file, ('--args' if len(args)>0 else '')] + args,  capture_output=True, shell=True)
+        proc = subprocess.run(['java', '-Djava.library.path=../src/main/ada/lib/','-Xmx1G', '-Xss32m', '-jar', Test.rascal_jar, rascal_file, ('--args' if len(args)>0 else '')] + args,  capture_output=True, shell=True)
         out = proc.stdout.decode("utf8")
         err = proc.stderr.decode("utf8")
         if proc.returncode != 0:
-            raise RascalError(err)
+            raise RascalError(out + "\n" + err)
         return out
 
 
@@ -81,18 +126,21 @@ class Test:
             self.__check_output(out)
             self.__print_output(GREEN, "OK")
             self.success = True
+            self.threadQueue.remove(self)
         except (UnexpectedOutput, RascalError) as e:
             with print_lock:   
                 print(str(e))
             self.__print_output(RED, "KO")
             self.success = False
+            self.threadQueue.remove(self)
     
-    def setThread(self, th):
-        self.th = th
+    def start(self):
+        self.th.start()
+    
+    def join(self):
+        self.th.join()
 
     def getResult(self):
-        assert self.th is not None
-        self.th.join()
         assert self.success is not None
         return self.success
 
@@ -114,6 +162,8 @@ def main():
         setup = False
         print("ADA_AIR not set")
 
+    threadQueue = TestQueue(1)
+
     if setup:
         for test_dir in dirs:
             if os.path.isdir(test_dir) and test_dir.startswith("test_"):
@@ -124,12 +174,9 @@ def main():
 
                             test_name = test_dir + " " + lib
                             for file in os.listdir(test_dir):
-                                if os.path.isfile(test_dir +"/"+ file) and file.endswith(".rsc"):
-                                    test = Test(test_name, test_dir)
-                                    th = threading.Thread(target=test.run, args=(file, [lib_path]))
-                                    test.setThread(th)
-                                    tests.append(test)
-                                    th.start()
+                                if os.path.isfile(test_dir +"/"+ file) and file.endswith(".rsc"):                                
+                                    test = Test(test_name, test_dir, threadQueue, file, [lib_path])
+                                    threadQueue.add(test)
                         else:                    
                             print(f"skipping {lib}")
                             skippedTest += 1
@@ -137,12 +184,11 @@ def main():
                 else:
                     for file in os.listdir(test_dir):
                         if os.path.isfile(test_dir +"/"+ file) and file.endswith(".rsc"):
-                            test = Test(test_dir, test_dir)
-                            th = threading.Thread(target=test.run, args=(file, []))
-                            test.setThread(th)
-                            tests.append(test)
-                            th.start()
-        for t in tests:
+                            test = Test(test_dir, test_dir, threadQueue, file, [])
+                            threadQueue.add(test)
+
+        threadQueue.wait()
+        for t in threadQueue.get_all_tests():
             if t.getResult():
                 successfulTest += 1
             else:

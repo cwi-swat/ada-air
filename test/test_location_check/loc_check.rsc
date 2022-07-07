@@ -36,7 +36,6 @@ bool allNodesAreOrdered(node haystack) {
             return false;
         else if ([*_,list[node] a1, *_ ,list[node] a2, * _] := getChildren(needle) && !isEmpty(a1) && ! isEmpty(a2) && head(a2).src < last(a1).src)
             return false;
-        //TODO handle optional fields
     }
     return true;
 }
