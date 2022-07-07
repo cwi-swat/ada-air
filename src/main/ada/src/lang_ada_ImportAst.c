@@ -1,6 +1,6 @@
 #include <jni.h>        // JNI header provided by JDK
 #include <stdio.h>      // C Standard IO Header
-#include "lang_ada_importast.h"
+#include "lang_ada_ImportAst.h"
 
 extern void Ada_Func_Wrapper(const char* ada, const char* out);
 
