@@ -1,0 +1,13 @@
+name = "lal_to_rascal"
+description = "Exporting Libadalang AST into Rascal"
+version = "0.1"
+licenses = "BSD-2-Clause"
+website = "https://github.com/cwi-swat/ada-air"
+tags = ["analysis", "manipulation", "transformation", "rascal"]
+
+authors = ["Pierre van de Laar", "Damien De Campos", "Jurgen J. Vinju"]
+
+[[depends-on]]
+libadalang = "^22.0.0"
+Langkit_Support="^22.0.0"
+gnatcoll="^22.0.0"

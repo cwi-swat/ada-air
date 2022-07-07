@@ -1,6 +1,31 @@
 with "libadalang";
-project Lal_To_Rascal is
-    for Source_Dirs use ("src");
-    for Object_Dir use "obj";
-    for Main use ("main.adb");
-end Lal_To_Rascal;
+library project lal_to_rascal is
+
+   JavaHome := external("JAVA_HOME");
+   type OS_Kind is ("windows", "unix", "osx");
+   OS : OS_Kind := External ("RASCAL_OS", "unix");
+
+   Include_Dir := "";
+
+	case OS is
+		when "windows" =>
+			Include_Dir := "win32";
+		when "unix" =>
+			Include_Dir := "linux";
+		when "osx" =>
+			Include_Dir := "linux"; --TODO check
+	end case;
+
+   for Languages use ("ada", "c");
+   for Library_Name use "native";
+   for Library_Kind use "dynamic";
+   for Library_Dir use "lib";
+   for Source_Dirs use ("src");
+   for Library_Auto_Init use "true";
+   for Object_Dir use "obj";
+
+   package Compiler is
+      for Default_Switches ("C") use ("-I" & JavaHome & "/include", "-I" & JavaHome & "/include/" & Include_Dir);
+   end Compiler;
+
+end lal_to_rascal;

@@ -76,7 +76,9 @@ class RascalPass(langkit.passes.AbstractPass):
 
         rascal_types.rename_fields_redeclaration()
         output_dir = os.path.dirname(__file__) + "/../main/rascal/lang/ada/"
-        tmp = Template(filename=RascalPass.templates_dir + "rascal_ast.mako")
+        with open(RascalPass.templates_dir + "rascal_ast.mako") as f:
+            templateStr = f.read()
+        tmp = Template(templateStr)
         with open(output_dir + 'AST.rsc', 'w') as f:
             f.write(tmp.render(types=rascal_types, types_extended_from_m3=types_extended_from_m3))
 
@@ -85,8 +87,11 @@ class RascalPass(langkit.passes.AbstractPass):
         output_dir = os.path.dirname(__file__) + "/../main/ada/src/"
         if not os.path.isdir(output_dir):
             os.mkdir(output_dir)
-        tmp = Template(filename=RascalPass.templates_dir + "ada_main.mako")
-        with open(output_dir + 'main.adb', 'w') as f:
+        # Work-arround on windows to avoid blank lines 
+        with open(RascalPass.templates_dir + "ada_main.mako") as f:
+            templateStr = f.read()
+        tmp = Template(templateStr)
+        with open(output_dir + 'export_ast.adb', 'w') as f:
             f.write(tmp.render(ctx=context, inlined_prefix_nodes = RascalPass.inlined_prefix_nodes, chained_constructor_fun = chained_constructor_fun, field_with_chained_constructor =  field_with_chained_constructor, get_chained_constructor= get_chained_constructor, decl_functions=decl_functions))
 
 
