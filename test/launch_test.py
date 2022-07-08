@@ -75,11 +75,9 @@ class TestQueue:
         return self.all_tests
 
     def wait(self):
-        while len(self.waiting_tests) > 0:
+        while len(self.waiting_tests) > 0 or len(self.running_tests) > 0:
             for t in self.running_tests:
                 t.join()
-        for t in self.running_tests:
-            t.join()
 
 def clean(s):
     return re.sub(r"[\n\t\s\r]*", "", s)
@@ -99,7 +97,7 @@ class Test:
 
 
     def __run_rascal(self, rascal_file, args):
-        proc = subprocess.run(['java', '-Djava.library.path=../src/main/ada/lib/','-Xmx1G', '-Xss32m', '-jar', Test.rascal_jar, rascal_file, ('--args' if len(args)>0 else '')] + args,  capture_output=True, shell=True)
+        proc = subprocess.run(['java', '-Djava.library.path=../src/main/ada/lib/','-Xmx1G', '-Xss32m', '-jar', Test.rascal_jar, rascal_file, ('--args' if len(args)>0 else '')] + args,  capture_output=True, shell=False)
         out = proc.stdout.decode("utf8")
         err = proc.stderr.decode("utf8")
         if proc.returncode != 0:
