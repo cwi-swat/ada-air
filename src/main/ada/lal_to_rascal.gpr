@@ -10,6 +10,7 @@ library project lal_to_rascal is
 	case OS is
 		when "windows" =>
 			Include_Dir := "win32";
+     			for Shared_Library_Prefix use "";
 		when "unix" =>
 			Include_Dir := "linux";
 		when "osx" =>

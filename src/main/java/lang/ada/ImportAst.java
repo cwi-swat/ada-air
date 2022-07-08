@@ -17,7 +17,7 @@ public class ImportAst {
 	}
 
     static {
-        System.loadLibrary("libnative");
+        System.loadLibrary("native");
     }
     
     public void importAdaAst(ISourceLocation adaFile, ISourceLocation outFile) {
