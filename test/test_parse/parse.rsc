@@ -23,27 +23,34 @@ import util::SystemAPI;
 import String;
 import List;
 import util::FileSystem;
+import Node;
 
-/*
-void recursive_visit(list[loc] l) {
-   for(loc f <- l) {
-      if(endsWith(f.path,".ads") || endsWith(f.path,".adb")) {
-         U = importAdaAST(f);
-      }
-      else if (isDirectory(f)) {
-         recursive_visit (f);
-      }
-   }
+bool allNodesHaveASource(node haystack) = (true | it && needle.src? | /node needle <- haystack);
+
+bool allNodesAreOrdered(node haystack) {
+    for(/node needle <- haystack) {
+        if([*_,node a1, *_ ,node a2, * _] := getChildren(needle) && a2.src < a1.src)
+            return false;
+        else if ([*_,list[node] a1, *_ ,node a2, * _] := getChildren(needle) && !isEmpty(a1) && a2.src < last(a1).src)
+            return false;
+        else if ([*_,node a1, *_ ,list[node] a2, * _] := getChildren(needle) && !isEmpty(a2) && head(a2).src < a1.src)
+            return false;
+        else if ([*_,list[node] a1, *_ ,list[node] a2, * _] := getChildren(needle) && !isEmpty(a1) && ! isEmpty(a2) && head(a2).src < last(a1).src)
+            return false;
+    }
+    return true;
 }
-*/
+
+
 void main(list[str] args=[]) {
     loc lib_dir = |file:///| + getSystemEnvironment()[args[0]];
     Compilation_Unit U;
     for(loc f <- visibleFiles(lib_dir)) {
       if(endsWith(f.path,".ads") || endsWith(f.path,".adb")) {
          U = importAdaAST(f);
-         //println(f.path);
+         if (!allNodesHaveASource(U) || !allNodesAreOrdered(U))
+            println("Assertion failled : " + f.path);
       }
     }
-    //recursive_visit(lib_dir.ls);
 }
+   
