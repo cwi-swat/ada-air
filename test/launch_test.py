@@ -52,7 +52,6 @@ class TestQueue:
         self.waiting_tests = []
 
     def add(self, test):
-        print(test.test_name + " added")
         with queue_lock:
             self.all_tests.append(test)
             if len(self.running_tests) < self.size:
@@ -62,7 +61,6 @@ class TestQueue:
                 self.waiting_tests.append (test)
 
     def remove(self, test):
-        print(test.test_name + " removed")
         with queue_lock:
             assert test in self.running_tests
             self.running_tests.remove(test)
