@@ -17,140 +17,63 @@ def get_decl(n):
    else:
       call = f"N.As_{n.public_type.api_name.camel_with_underscores}.{fun}"
 
-   return "(if not {}.Is_Null then \"decl=\" & To_Rascal_Sloc_Range({}) else \"\")".format(call,call)
+   return "(if not {}.Is_Null then \"decl=\" & Export_Tools.Get_Rascal_Physical_Location ({}) else \"\")".format(call,call)
 %>\
 with Ada.Text_IO;
+with Ada.Wide_Wide_Text_IO;
 with Libadalang.Analysis;
 with Libadalang.Common;
-with Langkit_Support.Text;
-with Langkit_Support.Slocs;
-with Ada.Strings.Unbounded;
-with Ada.Strings.Fixed;
-with Ada.Characters.Latin_1;
-with GNATCOLL.Utils;
-with Ada.Characters.Handling;
-with Ada.Strings.Unbounded.Text_IO;
+with Ada.Strings.Wide_Wide_Fixed;
+with Ada.Characters.Wide_Wide_Latin_1;
+with Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO;
+with Strings_Utils;
+with Export_Tools;
+with Ada.Wide_Wide_Characters.Handling;
 % if debug:
-with Ada.Directories;
+with Export_Debug_Tools;
 % endif
 
 package body Export_Ast is
    package LAL renames Libadalang.Analysis;
    package LALCO renames Libadalang.Common;
 
+
    % if debug:
-   type Constructor_Visited_Array is array(LALCO.Ada_Node_Kind_Type) of Boolean;
-   Constructor_Visited : Constructor_Visited_Array := (others => False);
-
-   procedure Save_Constructor_Visited is
-      F : Ada.Text_IO.File_Type;
-   begin
-      Ada.Text_IO.Open (File => F, Mode => Ada.Text_IO.Out_File, Name =>  "array.txt");
-      for I in Constructor_Visited'Range loop
-         Ada.Text_IO.Put_line (F, Ada.Strings.Fixed.Trim (I'Image, Ada.Strings.Both)
-                               & ":" &
-                               Ada.Strings.Fixed.Trim (Constructor_Visited (I)'Image, Ada.Strings.Both));        
-      end loop;
-      Ada.Text_IO.Close (F);      
-   end Save_Constructor_Visited;
-   
-   procedure Load_Constructor_Visited is
-      F : Ada.Text_IO.File_Type;
-   begin
-      if Ada.Directories.Exists ("array.txt") then
-         Ada.Text_IO.Open (File => F, Mode => Ada.Text_IO.In_File, Name =>  "array.txt");
-      else
-         Ada.Text_IO.Create (File => F, Mode => Ada.Text_IO.In_File, Name =>  "array.txt");
-      end if;
-      while not Ada.Text_IO.End_Of_File (F) loop
-         declare
-            Line : constant String := Ada.Text_IO.Get_Line (F);
-            Split : GNATCOLL.Utils.Unbounded_String_Array := GNATCOLL.Utils.Split (Str => Line, On => ':');
-            Kind : constant LALCO.Ada_Node_Kind_Type := LALCO.Ada_Node_Kind_Type'Value (Ada.Strings.Unbounded.To_String (Split(Split'First)));
-            Value : constant Boolean := Boolean'Value (Ada.Strings.Unbounded.To_String (Split(Split'First + 1)));
-         begin
-            Constructor_Visited (Kind) := Value;
-         end;
-      end loop;      
-      Ada.Text_IO.Close (F);
-   end Load_Constructor_Visited;
+   Constructors_Used : Export_Debug_Tools.Constructors_Used_Array;
    % endif
+   procedure Export_Ast_To_Rascal (Print_Context : Export_Tools.Print_Context_Record_Type;
+                                   Type_Context  : Export_Tools.Type_Context_Record_Type) is
 
-   function To_Rascal_Sloc_Range (N : LAL.Ada_Node'Class) return String is
-      use Ada.Strings.Unbounded;
-      use Langkit_Support.Slocs;
-      LAL_Sloc : Source_Location_Range := N.Sloc_Range;
-   begin
-      LAL_Sloc.Start_Column := LAL_Sloc.Start_Column - 1;
-      LAL_Sloc.End_Column := LAL_Sloc.End_Column - 1;
-      declare
-         Rascal_Sloc : Unbounded_String := To_Unbounded_String (Langkit_Support.Text.Image (Image (LAL_Sloc)));
-         Hyphen_Index : constant Positive := Index (Rascal_Sloc, "-");
-         FileName : constant String := GNATCOLL.Utils.Replace (N.Unit.Get_Filename, "\", "/"); -- work-arround Rascal doesn't allow backslash
-         offset : constant Positive := LALCO.Raw_Data (N.Token_Start).Source_First;
-         lenght : constant Natural := LALCO.Raw_Data (N.Token_End).Source_Last - LALCO.Raw_Data (N.Token_Start).Source_First + 1;
-      begin
-         GNATCOLL.Utils.Replace (S => Rascal_Sloc, Pattern => ":" , Replacement =>  ",");
-         GNATCOLL.Utils.Replace (S => Rascal_Sloc, Pattern => "-" , Replacement =>  ",");
-         Insert (Rascal_Sloc, Hyphen_Index+1, "<");
-         Insert (Rascal_Sloc, Hyphen_Index, ">");
-         Rascal_Sloc := "|file:///" & FileName & "|(" & offset'Image & "," & lenght'Image & ",<" & Rascal_Sloc & ">)";
-         return To_String (Rascal_Sloc);
-      end;
-   end To_Rascal_Sloc_Range;
+      use Ada.Characters.Wide_Wide_Latin_1;
+      use Ada.Strings.Wide_Wide_Unbounded;
+      use Ada.Strings.Wide_Wide_Fixed;
 
-   function Escape_Quotes (S : String) return String is (GNATCOLL.Utils.Replace (s, """", "\"""));
-
-       
-   function Lower_Name_With_Underscore(S : String) return String is
-      use Ada.Strings.Unbounded;
-      use Ada.Characters.Handling;
-      Unb : Unbounded_String := To_Unbounded_String ("" & To_Lower(S(S'First)));
-   begin
-      for i in S'First+1..S'Last loop
-         if Is_Upper (S(i)) then
-            Append (Unb, "_");
-         end if;
-         Append (Unb, To_Lower (S(i)));
-      end loop;
-      return To_String(Unb);
-   end Lower_Name_With_Underscore;
-
-
-   subtype Entry_Point is LALCO.Ada_Node_Kind_Type with Static_Predicate => 
-      Entry_Point in LALCO.Ada_Compilation_Unit
-      | LALCO.Ada_Compilation_Unit_List
-      | LALCO.Ada_Pragma_Node_List;
-
-   
-   procedure Export_Ast_To_Rascal (F : Ada.Text_IO.File_Type; N : LAL.Ada_Node'Class; Indent : Natural := 0; Pretty_Print : Boolean := True; IsOptional : Boolean := False; Need_Chained_Constructor : Boolean := False) is
-      use Ada.Characters.Latin_1;
-      use Ada.Strings.Unbounded;
-      use Ada.Strings.Fixed;
+      N : constant LAL.Ada_Node := Type_Context.N;
+      F : constant Export_Tools.File_Type_Access := Print_Context.File; 
       Is_Root : constant Boolean := not N.Is_Null and then N.Parent.Is_Null;
-      Tab : constant string := (if Pretty_Print then "|  " else " ");
-      Prefix : constant string := (if Pretty_Print then LF & (Indent * Tab) else "");
-      Just : constant string := (if IsOptional then "[" else " ");
-      End_Just : constant string := (if IsOptional then "]" else " ");
-      src : constant string := (if not N.Is_Null then "src=" & To_Rascal_Sloc_Range(N) else " ");
+      Tab : constant Wide_Wide_String := (if Print_Context.Pretty_Print then "|  " else " ");
+      Prefix : constant Wide_Wide_String := (if Print_Context.Pretty_Print then LF & (Print_Context.Indent * Tab) else "");
+      Opt : constant Wide_Wide_String := (if Type_Context.Is_Optional then "[" else " ");
+      End_Opt : constant Wide_Wide_String := (if Type_Context.Is_Optional then "]" else " ");
+      src : constant Wide_Wide_String := (if not N.Is_Null then "src=" & Export_Tools.Get_Rascal_Physical_Location(N) else " ");
    begin
       if N.Is_Null then
-         Ada.Text_IO.Put (F, Prefix);
-         Ada.Text_IO.Put (F, "[]");
+         Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+         Ada.Wide_Wide_Text_IO.Put (F.all, "[]");
          return;
       end if;
       
       if Is_Root then
-         if N.Kind not in Entry_Point then
+         if N.Kind not in Export_Tools.Entry_Point_Enum_Type then
             raise Program_Error with N.Kind_Name & "isn't an entry point";
          else
-            case Entry_Point (N.Kind) is
+            case Export_Tools.Entry_Point_Enum_Type (N.Kind) is
                when LALCO.Ada_Compilation_Unit =>
-                  Ada.Text_IO.Put (F, "Compilation_Units_Kind([");
+                  Ada.Wide_Wide_Text_IO.Put (F.all, "Compilation_Units_Kind([");
                when LALCO.Ada_Compilation_Unit_List =>
-                  Ada.Text_IO.Put (F, "Compilation_Units_Kind(");
+                  Ada.Wide_Wide_Text_IO.Put (F.all, "Compilation_Units_Kind(");
                when LALCO.Ada_Pragma_Node_List =>
-                  Ada.Text_IO.Put (F, "Statements_Kind(");
+                  Ada.Wide_Wide_Text_IO.Put (F.all, "Statements_Kind(");
             end case;
          end if;
       end if;
@@ -160,95 +83,107 @@ package body Export_Ast is
          % if not n.abstract:
       when LALCO.${n.ada_kind_name} =>
          % if debug:
-         Constructor_Visited (LALCO.${n.ada_kind_name}) := True;
+         Constructors_Used (LALCO.${n.ada_kind_name}) := True;
          % endif
             % if n.is_list or n.is_root_list_type: # list can't be optional
          declare
                IsEmpty : Boolean := True;
          begin
-            Ada.Text_IO.Put (F, Prefix);
+            Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
                % if get_chained_constructor(n) is not None:
-            if Need_Chained_Constructor then
-               Ada.Text_IO.Put (F, "${get_chained_constructor(n)}(");
+            if Type_Context.Need_Chained_Constructor then
+               Ada.Wide_Wide_Text_IO.Put (F.all, "${get_chained_constructor(n)}(");
             end if;
                % endif
-            Ada.Text_IO.Put_Line(F, "[");
+            Ada.Wide_Wide_Text_IO.Put (F.all, "[");
             for node of N.As_${n.public_type.api_name.camel_with_underscores} loop
                if not IsEmpty then
-                  Ada.Text_IO.Put (F, ","); -- no list of maybe
+                  Ada.Wide_Wide_Text_IO.Put (F.all, ","); -- no list of maybe
                end if;
                % if get_chained_constructor(n) is not None:
-               Export_Ast_To_Rascal (F, node, Indent + 1, Pretty_Print, False, False);
+               Export_Ast_To_Rascal (Print_Context => Export_Tools.Add_Indent_Level (Print_Context),
+                                     Type_Context => (N                      => Node.As_Ada_Node,
+                                                    Is_Optional              => False,
+                                                    Need_Chained_Constructor => False));
                % else:
-               Export_Ast_To_Rascal (F, node, Indent + 1, Pretty_Print, False, Need_Chained_Constructor);
+               Export_Ast_To_Rascal (Print_Context => Export_Tools.Add_Indent_Level (Print_Context),
+                                    Type_Context => (N                      => Node.As_Ada_Node,
+                                                   Is_Optional              => False,
+                                                   Need_Chained_Constructor => Type_Context.Need_Chained_Constructor));
                % endif
                IsEmpty := False;
             end loop;
-            Ada.Text_IO.Put (F, "]");
+            Ada.Wide_Wide_Text_IO.Put (F.all, "]");
                % if get_chained_constructor(n) is not None:
-            if Need_Chained_Constructor then
-               Ada.Text_IO.Put (F, ",");
-               Ada.Text_IO.Put (F, src);
-               Ada.Text_IO.Put (F, ")");
+            if Type_Context.Need_Chained_Constructor then
+               Ada.Wide_Wide_Text_IO.Put (F.all, ",");
+               Ada.Wide_Wide_Text_IO.Put (F.all, src);
+               Ada.Wide_Wide_Text_IO.Put (F.all, ")");
             end if;
                % endif
          end;
             % elif n.public_type.api_name.lower.endswith("_absent"):
-         Ada.Text_IO.Put (F, Prefix);
-         Ada.Text_IO.Put (F, "[]");  -- always Maybe
+         Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+         Ada.Wide_Wide_Text_IO.Put (F.all, "[]");  -- always Maybe
 
                % elif n.public_type.api_name.lower.endswith("_present"):          
-         Ada.Text_IO.Put (F, Prefix);
-         Ada.Text_IO.Put (F, "[${n.base.public_type.api_name.lower}(");
-         Ada.Text_IO.Put (F, src);
-         Ada.Text_IO.Put (F, ")]"); --  always Maybe
+         Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+         Ada.Wide_Wide_Text_IO.Put (F.all, "[${n.base.public_type.api_name.lower}(");
+         Ada.Wide_Wide_Text_IO.Put (F.all, src);
+         Ada.Wide_Wide_Text_IO.Put (F.all, ")]"); --  always Maybe
 
                % elif n.public_type.api_name.lower in inlined_prefix_nodes:
          declare
-               op_full_name  : constant String := N.As_${n.public_type.api_name.camel_with_underscores}.F_Op.Kind_Name;
-               op_name       : constant String := Lower_Name_With_Underscore (op_full_name(3..op_full_name'Last));
+               op_full_name  : constant Wide_Wide_String := N.As_${n.public_type.api_name.camel_with_underscores}.F_Op.Kind'Wide_Wide_Image;
+               op_name       : constant Wide_Wide_String := Ada.Wide_Wide_Characters.Handling.To_Lower (op_full_name(5..op_full_name'Last)); -- skipping Ada_
          begin
             % if debug: 
-            Constructor_Visited (N.As_${n.public_type.api_name.camel_with_underscores}.F_Op.Kind) := True;
+            Constructors_Used (N.As_${n.public_type.api_name.camel_with_underscores}.F_Op.Kind) := True;
             % endif
                   % if get_chained_constructor(n) is not None:
-            if Need_Chained_Constructor then
-               Ada.Text_IO.Put (F, Prefix);
-               Ada.Text_IO.Put (F, Just);
-               Ada.Text_IO.Put (F, "${get_chained_constructor(n)}");
-               Ada.Text_IO.Put (F, "(");
-               Ada.Text_IO.Put (F, "${inlined_prefix_nodes[n.public_type.api_name.lower]}");
-               Ada.Text_IO.Put (F, op_name);
-               Ada.Text_IO.Put (F, "(");
+            if Type_Context.Need_Chained_Constructor then
+               Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+               Ada.Wide_Wide_Text_IO.Put (F.all, Opt);
+               Ada.Wide_Wide_Text_IO.Put (F.all, "${get_chained_constructor(n)}");
+               Ada.Wide_Wide_Text_IO.Put (F.all, "(");
+               Ada.Wide_Wide_Text_IO.Put (F.all, "${inlined_prefix_nodes[n.public_type.api_name.lower]}");
+               Ada.Wide_Wide_Text_IO.Put (F.all, op_name);
+               Ada.Wide_Wide_Text_IO.Put (F.all, "(");
                      % for field in n.get_parse_fields(include_inherited=True):
                         % if field.api_name.lower != "f_op":
-               Export_Ast_To_Rascal (F, N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional});
-               Ada.Text_IO.Put (F, ", ");
+               Export_Ast_To_Rascal (Print_Context => Export_Tools.Add_Indent_Level (Print_Context),
+                                    Type_Context => (N                      => N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}.As_Ada_Node,
+                                                   Is_Optional              => ${field.is_optional},
+                                                   Need_Chained_Constructor => False));
+               Ada.Wide_Wide_Text_IO.Put (F.all, ", ");
                         % endif
                      % endfor
-               Ada.Text_IO.Put (F, Prefix);
-               Ada.Text_IO.Put (F, src);
-               Ada.Text_IO.Put (F, "), ");
-               Ada.Text_IO.Put (F, src);
-               Ada.Text_IO.Put (F, ")");
-               Ada.Text_IO.Put (F, End_Just);
+               Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+               Ada.Wide_Wide_Text_IO.Put (F.all, src);
+               Ada.Wide_Wide_Text_IO.Put (F.all, "), ");
+               Ada.Wide_Wide_Text_IO.Put (F.all, src);
+               Ada.Wide_Wide_Text_IO.Put (F.all, ")");
+               Ada.Wide_Wide_Text_IO.Put (F.all, End_Opt);
             else
                   % endif
-               Ada.Text_IO.Put (F, Prefix);
-               Ada.Text_IO.Put (F, Just);
-               Ada.Text_IO.Put (F, "${inlined_prefix_nodes[n.public_type.api_name.lower]}");
-               Ada.Text_IO.Put (F, op_name);
-               Ada.Text_IO.Put (F, "(");
+               Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+               Ada.Wide_Wide_Text_IO.Put (F.all, Opt);
+               Ada.Wide_Wide_Text_IO.Put (F.all, "${inlined_prefix_nodes[n.public_type.api_name.lower]}");
+               Ada.Wide_Wide_Text_IO.Put (F.all, op_name);
+               Ada.Wide_Wide_Text_IO.Put (F.all, "(");
                   % for field in n.get_parse_fields(include_inherited=True):
-                     % if field.api_name.lower != "f_op":
-               Export_Ast_To_Rascal (F, N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional});
-               Ada.Text_IO.Put (F, ", ");
+                     % if field.api_name.lower != "f_op":               
+               Export_Ast_To_Rascal (Print_Context => Export_Tools.Add_Indent_Level (Print_Context),
+                                    Type_Context => (N                      => N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}.As_Ada_Node,
+                                                   Is_Optional              => ${field.is_optional},
+                                                   Need_Chained_Constructor => False));
+               Ada.Wide_Wide_Text_IO.Put (F.all, ", ");
                      % endif
                   % endfor
-               Ada.Text_IO.Put (F, Prefix);
-               Ada.Text_IO.Put (F, src);
-               Ada.Text_IO.Put (F, ")");
-               Ada.Text_IO.Put (F, End_Just);
+               Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+               Ada.Wide_Wide_Text_IO.Put (F.all, src);
+               Ada.Wide_Wide_Text_IO.Put (F.all, ")");
+               Ada.Wide_Wide_Text_IO.Put (F.all, End_Opt);
                   % if get_chained_constructor(n) is not None:
             end if;
                   % endif
@@ -258,77 +193,83 @@ package body Export_Ast is
                   % if get_chained_constructor(n) is not None:
                      % if get_decl(n) is not None:
          declare
-               decl : Unbounded_String;
+               decl : Unbounded_Wide_Wide_String := Null_Unbounded_Wide_Wide_String;
          begin
             begin
-               decl := To_Unbounded_String (${get_decl(n)});
+               decl := To_Unbounded_Wide_Wide_String (${get_decl(n)});
             exception
                -- Int_Literal has this property but it isn't implemented
                -- TODO find a better way to handle this
                when others =>
-                  decl := Null_Unbounded_String;
+                  null;
             end;
                      % endif
-         if Need_Chained_Constructor then
-               Ada.Text_IO.Put (F, Prefix);
-               Ada.Text_IO.Put (F, Just);
-               Ada.Text_IO.Put (F, "${get_chained_constructor(n)}");
-               Ada.Text_IO.Put (F, "(");
-               Ada.Text_IO.Put (F, "${n.public_type.api_name.lower} (");
+         if Type_Context.Need_Chained_Constructor then
+               Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+               Ada.Wide_Wide_Text_IO.Put (F.all, Opt);
+               Ada.Wide_Wide_Text_IO.Put (F.all, "${get_chained_constructor(n)}");
+               Ada.Wide_Wide_Text_IO.Put (F.all, "(");
+               Ada.Wide_Wide_Text_IO.Put (F.all, "${n.public_type.api_name.lower} (");
                      % if n.is_token_node:
-               Ada.Text_IO.Put (F, Prefix);
-               Ada.Text_IO.Put (F, Tab);
-               Ada.Text_IO.Put (F, """" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """");
-               Ada.Text_IO.Put (F,  ", ");
+               Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+               Ada.Wide_Wide_Text_IO.Put (F.all, Tab);
+               Ada.Wide_Wide_Text_IO.Put (F.all, """" & Strings_Utils.Escape_Quotes (N.Text) & """");
+               Ada.Wide_Wide_Text_IO.Put (F.all,  ", ");
                      % endif
-                     % for field in n.get_parse_fields(include_inherited=True):                
-               Export_Ast_To_Rascal (F, N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor});
-               Ada.Text_IO.Put (F, ", ");
+                     % for field in n.get_parse_fields(include_inherited=True):                               
+               Export_Ast_To_Rascal (Print_Context => Export_Tools.Add_Indent_Level (Print_Context),
+                                    Type_Context => (N                      => N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}.As_Ada_Node,
+                                                   Is_Optional              => ${field.is_optional},
+                                                   Need_Chained_Constructor => ${field in field_with_chained_constructor}));
+               Ada.Wide_Wide_Text_IO.Put (F.all, ", ");
                      % endfor
                      % if get_decl(n) is not None:
-               Ada.Text_IO.Put (F, Prefix);
-               Ada.Text_IO.Put (F, src);
-               Ada.Text_IO.Put (F, ", ");
-               Ada.Strings.Unbounded.Text_IO.Put (F, decl);
-               Ada.Text_IO.Put (F, "),");
-               Ada.Text_IO.Put (F, src);
-               Ada.Text_IO.Put (F, ")");
-               Ada.Text_IO.Put (F, End_Just);
+               Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+               Ada.Wide_Wide_Text_IO.Put (F.all, src);
+               Ada.Wide_Wide_Text_IO.Put (F.all, ", ");
+               Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO.Put (F.all, decl);
+               Ada.Wide_Wide_Text_IO.Put (F.all, "),");
+               Ada.Wide_Wide_Text_IO.Put (F.all, src);
+               Ada.Wide_Wide_Text_IO.Put (F.all, ")");
+               Ada.Wide_Wide_Text_IO.Put (F.all, End_Opt);
                      % else:
-               Ada.Text_IO.Put (F, Prefix);
-               Ada.Text_IO.Put (F, src);
-               Ada.Text_IO.Put (F, "),");
-               Ada.Text_IO.Put (F, src);
-               Ada.Text_IO.Put (F,  ")");
-               Ada.Text_IO.Put (F, End_Just);
+               Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+               Ada.Wide_Wide_Text_IO.Put (F.all, src);
+               Ada.Wide_Wide_Text_IO.Put (F.all, "),");
+               Ada.Wide_Wide_Text_IO.Put (F.all, src);
+               Ada.Wide_Wide_Text_IO.Put (F.all,  ")");
+               Ada.Wide_Wide_Text_IO.Put (F.all, End_Opt);
                      % endif
          else
                % endif
-            Ada.Text_IO.Put (F, Prefix);
-            Ada.Text_IO.Put (F, Just);
-            Ada.Text_IO.Put (F, "${n.public_type.api_name.lower} (");
+            Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+            Ada.Wide_Wide_Text_IO.Put (F.all, Opt);
+            Ada.Wide_Wide_Text_IO.Put (F.all, "${n.public_type.api_name.lower} (");
                % if n.is_token_node:
-            Ada.Text_IO.Put (F, Prefix);
-            Ada.Text_IO.Put (F, Tab);
-            Ada.Text_IO.Put (F,"""" & Escape_Quotes (Langkit_Support.Text.Image (N.Text)) & """");
-            Ada.Text_IO.Put (F, ", ");
+            Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+            Ada.Wide_Wide_Text_IO.Put (F.all, Tab);
+            Ada.Wide_Wide_Text_IO.Put (F.all,"""" & Strings_Utils.Escape_Quotes (N.Text) & """");
+            Ada.Wide_Wide_Text_IO.Put (F.all, ", ");
                % endif
                % for field in n.get_parse_fields(include_inherited=True):
-            Export_Ast_To_Rascal (F, N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}, Indent + 1, Pretty_Print, ${field.is_optional}, ${field in field_with_chained_constructor});
-            Ada.Text_IO.Put (F, ", ");
+            Export_Ast_To_Rascal (Print_Context => Export_Tools.Add_Indent_Level (Print_Context),
+                                    Type_Context => (N                      => N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}.As_Ada_Node,
+                                                   Is_Optional              => ${field.is_optional},
+                                                   Need_Chained_Constructor => ${field in field_with_chained_constructor}));
+            Ada.Wide_Wide_Text_IO.Put (F.all, ", ");
                % endfor
                % if get_decl(n) is not None:
-            Ada.Text_IO.Put (F, Prefix);
-            Ada.Text_IO.Put (F, src);
-            Ada.Text_IO.Put (F,", ");
-            Ada.Strings.Unbounded.Text_IO.Put (F, decl);
-            Ada.Text_IO.Put (F, ")");
-            Ada.Text_IO.Put (F, End_Just);
+            Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+            Ada.Wide_Wide_Text_IO.Put (F.all, src);
+            Ada.Wide_Wide_Text_IO.Put (F.all,", ");
+            Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO.Put (F.all, decl);
+            Ada.Wide_Wide_Text_IO.Put (F.all, ")");
+            Ada.Wide_Wide_Text_IO.Put (F.all, End_Opt);
                % else:
-            Ada.Text_IO.Put (F, Prefix);
-            Ada.Text_IO.Put (F, src);
-            Ada.Text_IO.Put (F, ")");
-            Ada.Text_IO.Put (F, End_Just);
+            Ada.Wide_Wide_Text_IO.Put (F.all, Prefix);
+            Ada.Wide_Wide_Text_IO.Put (F.all, src);
+            Ada.Wide_Wide_Text_IO.Put (F.all, ")");
+            Ada.Wide_Wide_Text_IO.Put (F.all, End_Opt);
                % endif
                % if get_chained_constructor(n) is not None:
          end if;
@@ -342,13 +283,13 @@ package body Export_Ast is
       end case;
 
       if Is_Root then
-         case Entry_Point (N.Kind) is
+         case Export_Tools.Entry_Point_Enum_Type (N.Kind) is
             when LALCO.Ada_Compilation_Unit =>
-               Ada.Text_IO.Put (F, "])");
+               Ada.Wide_Wide_Text_IO.Put (F.all, "])");
             when LALCO.Ada_Compilation_Unit_List =>
-               Ada.Text_IO.Put (F, ")");
+               Ada.Wide_Wide_Text_IO.Put (F.all, ")");
             when LALCO.Ada_Pragma_Node_List =>
-               Ada.Text_IO.Put (F, ")");
+               Ada.Wide_Wide_Text_IO.Put (F.all, ")");
          end case;
       end if;
    end Export_Ast_To_Rascal;
@@ -356,24 +297,27 @@ package body Export_Ast is
    procedure Export (File_Name : String; Out_File_Name : String; Pretty_Print : Boolean) is
       Context : constant LAL.Analysis_Context := LAL.Create_Context;
       Unit    : constant LAL.Analysis_Unit := Context.Get_From_File (File_Name);
-      F       : Ada.Text_IO.File_Type;
+      F       : aliased Ada.Wide_Wide_Text_IO.File_Type;
    begin
       if Unit.Has_Diagnostics then
          for D of Unit.Diagnostics loop
             Ada.Text_IO.Put_Line (Ada.Text_IO.Standard_Error, Unit.Format_GNU_Diagnostic (D));
+            Ada.Text_IO.Flush (Ada.Text_IO.Standard_Error);
          end loop;
       else
          % if debug:
-         Load_Constructor_Visited;
+         Load_Constructors_Used;
          % endif
-         Ada.Text_IO.Create (F, Ada.Text_IO.Out_File, Out_File_Name);
-         Export_Ast_To_Rascal (F           => F,
-                              N            => Unit.Root,
-                              Indent       => 0,
-                              Pretty_Print => Pretty_Print);
-         Ada.Text_IO.Close (F);
+         Ada.Wide_Wide_Text_IO.Create (F, Ada.Wide_Wide_Text_IO.Out_File, Out_File_Name);
+         Export_Ast_To_Rascal (Print_Context => (File => F'Unchecked_Access,
+                                                Indent => 0,
+                                                Pretty_Print => Pretty_Print),
+                              Type_Context => (N => Unit.Root,
+                                             Is_Optional => False,
+                                             Need_Chained_Constructor => False));
+         Ada.Wide_Wide_Text_IO.Close (F);
          % if debug:
-         Save_Constructor_Visited;
+         Save_Constructors_Used;
          % endif
       end if;
    end Export;
