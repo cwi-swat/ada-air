@@ -24,6 +24,7 @@ import String;
 import List;
 import util::FileSystem;
 import Node;
+import Exception;
 
 bool allNodesHaveASource(node haystack) = (true | it && needle.src? | /node needle <- haystack);
 
@@ -44,12 +45,18 @@ bool allNodesAreOrdered(node haystack) {
 
 void main(list[str] args=[]) {
     loc lib_dir = |file:///| + getSystemEnvironment()[args[0]];
-    Compilation_Unit U;
+    Entry_Point U;
     for(loc f <- visibleFiles(lib_dir)) {
       if(endsWith(f.path,".ads") || endsWith(f.path,".adb")) {
-         U = importAdaAST(f);
-         if (!allNodesHaveASource(U) || !allNodesAreOrdered(U))
-            println("Assertion failled : " + f.path);
+         try {
+            U = importAdaAST(f);
+            if (!allNodesHaveASource(U) || !allNodesAreOrdered(U))
+               println("Assertion failled : " + f.path); 
+         }
+         catch IO(msg): {
+            println (msg);
+            println("failled to parse " + f.path);
+         }
       }
     }
 }

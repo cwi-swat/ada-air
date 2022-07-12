@@ -51,7 +51,7 @@ void compute_cyclomatic_complexity(Base_Formal_Param_Holder Subp_Spec, Statement
 
 void main(list[str] args=[]) {
     loc ada_air = |file:///| + getSystemEnvironment()["ADA_AIR"];
-    Compilation_Unit U = importAdaAST(ada_air + "/test/test_cyclomatic_complexity/test.adb");
+    Entry_Point U = importAdaAST(ada_air + "/test/test_cyclomatic_complexity/test.adb");
     for(/subp_body(_, Subp_Spec, _, _, Stmts, _) <- U) {
         compute_cyclomatic_complexity(Subp_Spec, Stmts);
     }

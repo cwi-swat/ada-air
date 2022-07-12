@@ -12,7 +12,7 @@ RED = '\033[31m'
 ENDC = '\033[m'
 GREEN = '\033[32m'
 
-libs = ["libadalang", "xmlada", "gnatcoll", "langkit_support", "aws", "ada_drivers_library"]
+libs = ["libadalang", "xmlada", "gnatcoll", "langkit_support", "aws", "ada_drivers_library", "Ada_Runtime"]
 # new lib : gnatstudio, gtkada, cudada, AdaDoom3, tamp, sdlada, ada-crypto-library, HAC
 print_lock = threading.Lock()
 queue_lock = threading.Lock()
@@ -140,7 +140,7 @@ class Test:
         assert self.success is not None
         return self.success
 
-def main():
+def main(jobs):
     failledTest = 0
     successfulTest = 0
     skippedTest = 0
@@ -158,7 +158,7 @@ def main():
         setup = False
         print("ADA_AIR not set")
 
-    threadQueue = TestQueue(1)
+    threadQueue = TestQueue(jobs)
 
     if setup:
         for test_dir in dirs:
@@ -200,4 +200,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    jobs = 1
+    if len(sys.argv) == 2:
+        try:
+            jobs = int(sys.argv[1])
+        except ValueError:
+            print("warning number of jobs must be an integer, used default value 1")
+            sys.stdout.flush()
+    main(jobs)
