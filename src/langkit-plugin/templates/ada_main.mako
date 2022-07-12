@@ -30,13 +30,51 @@ with Ada.Characters.Latin_1;
 with GNATCOLL.Utils;
 with Ada.Characters.Handling;
 with Ada.Strings.Unbounded.Text_IO;
+% if debug:
+with Ada.Directories;
+% endif
 
 package body Export_Ast is
    package LAL renames Libadalang.Analysis;
    package LALCO renames Libadalang.Common;
 
+   % if debug:
    type Constructor_Visited_Array is array(LALCO.Ada_Node_Kind_Type) of Boolean;
    Constructor_Visited : Constructor_Visited_Array := (others => False);
+
+   procedure Save_Constructor_Visited is
+      F : Ada.Text_IO.File_Type;
+   begin
+      Ada.Text_IO.Open (File => F, Mode => Ada.Text_IO.Out_File, Name =>  "array.txt");
+      for I in Constructor_Visited'Range loop
+         Ada.Text_IO.Put_line (F, Ada.Strings.Fixed.Trim (I'Image, Ada.Strings.Both)
+                               & ":" &
+                               Ada.Strings.Fixed.Trim (Constructor_Visited (I)'Image, Ada.Strings.Both));        
+      end loop;
+      Ada.Text_IO.Close (F);      
+   end Save_Constructor_Visited;
+   
+   procedure Load_Constructor_Visited is
+      F : Ada.Text_IO.File_Type;
+   begin
+      if Ada.Directories.Exists ("array.txt") then
+         Ada.Text_IO.Open (File => F, Mode => Ada.Text_IO.In_File, Name =>  "array.txt");
+      else
+         Ada.Text_IO.Create (File => F, Mode => Ada.Text_IO.In_File, Name =>  "array.txt");
+      end if;
+      while not Ada.Text_IO.End_Of_File (F) loop
+         declare
+            Line : constant String := Ada.Text_IO.Get_Line (F);
+            Split : GNATCOLL.Utils.Unbounded_String_Array := GNATCOLL.Utils.Split (Str => Line, On => ':');
+            Kind : constant LALCO.Ada_Node_Kind_Type := LALCO.Ada_Node_Kind_Type'Value (Ada.Strings.Unbounded.To_String (Split(Split'First)));
+            Value : constant Boolean := Boolean'Value (Ada.Strings.Unbounded.To_String (Split(Split'First + 1)));
+         begin
+            Constructor_Visited (Kind) := Value;
+         end;
+      end loop;      
+      Ada.Text_IO.Close (F);
+   end Load_Constructor_Visited;
+   % endif
 
    function To_Rascal_Sloc_Range (N : LAL.Ada_Node'Class) return String is
       use Ada.Strings.Unbounded;
@@ -77,11 +115,19 @@ package body Export_Ast is
       end loop;
       return To_String(Unb);
    end Lower_Name_With_Underscore;
+
+
+   subtype Entry_Point is LALCO.Ada_Node_Kind_Type with Static_Predicate => 
+      Entry_Point in LALCO.Ada_Compilation_Unit
+      | LALCO.Ada_Compilation_Unit_List
+      | LALCO.Ada_Pragma_Node_List;
+
    
    procedure Export_Ast_To_Rascal (F : Ada.Text_IO.File_Type; N : LAL.Ada_Node'Class; Indent : Natural := 0; Pretty_Print : Boolean := True; IsOptional : Boolean := False; Need_Chained_Constructor : Boolean := False) is
       use Ada.Characters.Latin_1;
       use Ada.Strings.Unbounded;
       use Ada.Strings.Fixed;
+      Is_Root : constant Boolean := not N.Is_Null and then N.Parent.Is_Null;
       Tab : constant string := (if Pretty_Print then "|  " else " ");
       Prefix : constant string := (if Pretty_Print then LF & (Indent * Tab) else "");
       Just : constant string := (if IsOptional then "[" else " ");
@@ -93,11 +139,29 @@ package body Export_Ast is
          Ada.Text_IO.Put (F, "[]");
          return;
       end if;
+      
+      if Is_Root then
+         if N.Kind not in Entry_Point then
+            raise Program_Error with N.Kind_Name & "isn't an entry point";
+         else
+            case Entry_Point (N.Kind) is
+               when LALCO.Ada_Compilation_Unit =>
+                  Ada.Text_IO.Put (F, "Compilation_Units_Kind([");
+               when LALCO.Ada_Compilation_Unit_List =>
+                  Ada.Text_IO.Put (F, "Compilation_Units_Kind(");
+               when LALCO.Ada_Pragma_Node_List =>
+                  Ada.Text_IO.Put (F, "Statements_Kind(");
+            end case;
+         end if;
+      end if;
+
    case N.Kind is
       % for n in ctx.astnode_types:
          % if not n.abstract:
       when LALCO.${n.ada_kind_name} =>
+         % if debug:
          Constructor_Visited (LALCO.${n.ada_kind_name}) := True;
+         % endif
             % if n.is_list or n.is_root_list_type: # list can't be optional
          declare
                IsEmpty : Boolean := True;
@@ -128,25 +192,25 @@ package body Export_Ast is
                Ada.Text_IO.Put (F, ")");
             end if;
                % endif
-            return;
          end;
             % elif n.public_type.api_name.lower.endswith("_absent"):
          Ada.Text_IO.Put (F, Prefix);
-         Ada.Text_IO.Put (F, "[]");
-         return;  -- always Maybe
+         Ada.Text_IO.Put (F, "[]");  -- always Maybe
 
                % elif n.public_type.api_name.lower.endswith("_present"):          
          Ada.Text_IO.Put (F, Prefix);
          Ada.Text_IO.Put (F, "[${n.base.public_type.api_name.lower}(");
          Ada.Text_IO.Put (F, src);
-         Ada.Text_IO.Put (F, ")]");
-         return; --  always Maybe
+         Ada.Text_IO.Put (F, ")]"); --  always Maybe
 
                % elif n.public_type.api_name.lower in inlined_prefix_nodes:
          declare
                op_full_name  : constant String := N.As_${n.public_type.api_name.camel_with_underscores}.F_Op.Kind_Name;
                op_name       : constant String := Lower_Name_With_Underscore (op_full_name(3..op_full_name'Last));
          begin
+            % if debug: 
+            Constructor_Visited (N.As_${n.public_type.api_name.camel_with_underscores}.F_Op.Kind) := True;
+            % endif
                   % if get_chained_constructor(n) is not None:
             if Need_Chained_Constructor then
                Ada.Text_IO.Put (F, Prefix);
@@ -168,7 +232,6 @@ package body Export_Ast is
                Ada.Text_IO.Put (F, src);
                Ada.Text_IO.Put (F, ")");
                Ada.Text_IO.Put (F, End_Just);
-               return;
             else
                   % endif
                Ada.Text_IO.Put (F, Prefix);
@@ -186,7 +249,6 @@ package body Export_Ast is
                Ada.Text_IO.Put (F, src);
                Ada.Text_IO.Put (F, ")");
                Ada.Text_IO.Put (F, End_Just);
-               return;
                   % if get_chained_constructor(n) is not None:
             end if;
                   % endif
@@ -232,7 +294,6 @@ package body Export_Ast is
                Ada.Text_IO.Put (F, src);
                Ada.Text_IO.Put (F, ")");
                Ada.Text_IO.Put (F, End_Just);
-               return;
                      % else:
                Ada.Text_IO.Put (F, Prefix);
                Ada.Text_IO.Put (F, src);
@@ -240,7 +301,6 @@ package body Export_Ast is
                Ada.Text_IO.Put (F, src);
                Ada.Text_IO.Put (F,  ")");
                Ada.Text_IO.Put (F, End_Just);
-               return;
                      % endif
          else
                % endif
@@ -264,13 +324,11 @@ package body Export_Ast is
             Ada.Strings.Unbounded.Text_IO.Put (F, decl);
             Ada.Text_IO.Put (F, ")");
             Ada.Text_IO.Put (F, End_Just);
-            return;
                % else:
             Ada.Text_IO.Put (F, Prefix);
             Ada.Text_IO.Put (F, src);
             Ada.Text_IO.Put (F, ")");
             Ada.Text_IO.Put (F, End_Just);
-            return;
                % endif
                % if get_chained_constructor(n) is not None:
          end if;
@@ -282,6 +340,17 @@ package body Export_Ast is
          % endif
       % endfor
       end case;
+
+      if Is_Root then
+         case Entry_Point (N.Kind) is
+            when LALCO.Ada_Compilation_Unit =>
+               Ada.Text_IO.Put (F, "])");
+            when LALCO.Ada_Compilation_Unit_List =>
+               Ada.Text_IO.Put (F, ")");
+            when LALCO.Ada_Pragma_Node_List =>
+               Ada.Text_IO.Put (F, ")");
+         end case;
+      end if;
    end Export_Ast_To_Rascal;
 
    procedure Export (File_Name : String; Out_File_Name : String; Pretty_Print : Boolean) is
@@ -294,12 +363,18 @@ package body Export_Ast is
             Ada.Text_IO.Put_Line (Ada.Text_IO.Standard_Error, Unit.Format_GNU_Diagnostic (D));
          end loop;
       else
+         % if debug:
+         Load_Constructor_Visited;
+         % endif
          Ada.Text_IO.Create (F, Ada.Text_IO.Out_File, Out_File_Name);
          Export_Ast_To_Rascal (F           => F,
                               N            => Unit.Root,
                               Indent       => 0,
                               Pretty_Print => Pretty_Print);
          Ada.Text_IO.Close (F);
+         % if debug:
+         Save_Constructor_Visited;
+         % endif
       end if;
    end Export;
 

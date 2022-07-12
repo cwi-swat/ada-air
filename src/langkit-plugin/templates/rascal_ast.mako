@@ -21,10 +21,14 @@ import List;
 alias Ada_Node = node;
 alias Maybe[&T] = list[&T];
 
+data Entry_Point = Compilation_Units_Kind (list[Compilation_Unit] As_Compilation_Units)
+| Statements_Kind (list[Statement] As_Statements);
 
-data Stmt_Or_Decl(loc src=|unknown:///|) = decl_kind(Declaration As_Decl) | stmt_kind(Statement As_Stmt);
+data Stmt_Or_Decl(loc src=|unknown:///|) = decl_kind(Declaration As_Decl) 
+| stmt_kind(Statement As_Stmt);
 
-data Expr_Or_Assoc(loc src=|unknown:///|) = expr_kind(Expression As_Expr) | assoc_kind(list[Assoc] As_Assoc);
+data Expr_Or_Assoc(loc src=|unknown:///|) = expr_kind(Expression As_Expr) 
+| assoc_kind(list[Assoc] As_Assoc);
 
     % for type_name, constructors in types.get_types().items():
         % if type_name in types_extended_from_m3:

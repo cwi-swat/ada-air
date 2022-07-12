@@ -16,8 +16,9 @@ class RascalPass(langkit.passes.AbstractPass):
                             "relation_op": "rel_",
                             "membership_expr": "mem_"}
 
-    def __init__(self):
+    def __init__(self, debug = False):
         super().__init__("rascal plugin pass")
+        self.debug = debug
 
 
     def run(self, context: CompileCtx) -> None:
@@ -27,8 +28,7 @@ class RascalPass(langkit.passes.AbstractPass):
         self.emit_exportation_function(context)
         return
 
-    @staticmethod
-    def emit_rascal_data_types(context: CompileCtx) -> None:        
+    def emit_rascal_data_types(self, context: CompileCtx) -> None:        
         rascal_types = RascalDataTypes()
         for n in context.astnode_types:
             if n.is_root_node:
@@ -82,8 +82,7 @@ class RascalPass(langkit.passes.AbstractPass):
         with open(output_dir + 'AST.rsc', 'w') as f:
             f.write(tmp.render(types=rascal_types, types_extended_from_m3=types_extended_from_m3))
 
-    @staticmethod
-    def emit_exportation_function(context: CompileCtx):
+    def emit_exportation_function(self, context: CompileCtx):
         output_dir = os.path.dirname(__file__) + "/../main/ada/src/"
         if not os.path.isdir(output_dir):
             os.mkdir(output_dir)
@@ -92,8 +91,13 @@ class RascalPass(langkit.passes.AbstractPass):
             templateStr = f.read()
         tmp = Template(templateStr)
         with open(output_dir + 'export_ast.adb', 'w') as f:
-            f.write(tmp.render(ctx=context, inlined_prefix_nodes = RascalPass.inlined_prefix_nodes, chained_constructor_fun = chained_constructor_fun, field_with_chained_constructor =  field_with_chained_constructor, get_chained_constructor= get_chained_constructor, decl_functions=decl_functions))
+            f.write(tmp.render(ctx=context, inlined_prefix_nodes = RascalPass.inlined_prefix_nodes, chained_constructor_fun = chained_constructor_fun, field_with_chained_constructor =  field_with_chained_constructor, get_chained_constructor= get_chained_constructor, decl_functions=decl_functions, debug=self.debug))
 
+
+class DebugRascalPass(RascalPass):
+
+    def __init__(self):
+        super().__init__(True)
 
 class DotPass(langkit.passes.AbstractPass):
 

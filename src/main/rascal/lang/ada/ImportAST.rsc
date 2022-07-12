@@ -24,13 +24,14 @@ import util::Math;
 import util::SystemAPI;
 
 
-Compilation_Unit importAdaAST(loc file) {
+Entry_Point importAdaAST(loc file) {
     loc ada_air = |file:///| + getSystemEnvironment()["ADA_AIR"];
     loc exe = ada_air + "/src/main/ada/obj/main.exe";
     str out_file = getSystemEnvironment()["TMP"] + "/out" + toString(uuidi()) + ".txt";
     loc out = |file:///| + out_file;
     importAdaAst(file, out);
-    return readTextValueFile(#Compilation_Unit, out);
+    return readTextValueFile(#Entry_Point, out);
+
 }
 
 @javaClass{lang.ada.ImportAst}
