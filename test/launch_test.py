@@ -6,6 +6,7 @@ import sys
 import re
 import platform
 import threading
+import time
 
 
 RED = '\033[31m'
@@ -141,6 +142,7 @@ class Test:
         return self.success
 
 def main(jobs):
+    st = time.time()
     failledTest = 0
     successfulTest = 0
     skippedTest = 0
@@ -194,6 +196,8 @@ def main(jobs):
         print(10*"-" + " Result " + 10*"-")
         print(f"{successfulTest}/{total}")
         print(f"{skippedTest} tests skipped")
+        end = time.time()
+        print(time.strftime("%Hh%Mm%Ss", time.gmtime(end-st)))
 
     if failledTest != 0 or not setup:
         sys.exit(1)
@@ -205,6 +209,6 @@ if __name__ == "__main__":
         try:
             jobs = int(sys.argv[1])
         except ValueError:
-            print("warning number of jobs must be an integer, used default value 1")
+            print("warning number of jobs must be an integer, default value used: 1")
             sys.stdout.flush()
     main(jobs)
