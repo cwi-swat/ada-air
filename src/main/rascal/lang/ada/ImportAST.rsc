@@ -18,21 +18,25 @@ module lang::ada::ImportAST
 
 import lang::ada::AST;
 import ValueIO;
-import util::ShellExec;
 import util::UUID;
 import util::Math;
 import util::SystemAPI;
 
-
+@doc{
+.Synopsis
+Import an Ada ast using Libadalang.
+Make sure that the environment variable TMP is set.
+}
 Entry_Point importAdaAST(loc file) {
-    loc ada_air = |file:///| + getSystemEnvironment()["ADA_AIR"];
-    loc exe = ada_air + "/src/main/ada/obj/main.exe";
     str out_file = getSystemEnvironment()["TMP"] + "/out" + toString(uuidi()) + ".txt";
     loc out = |file:///| + out_file;
     importAdaAst(file, out);
     return readTextValueFile(#Entry_Point, out);
-
 }
 
+@doc{
+.Synopsis
+Parse an Ada file with Libadalang and print the rascal ast into a file.
+}
 @javaClass{lang.ada.ImportAst}
 public java void importAdaAst(loc ada, loc out);

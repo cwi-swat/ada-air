@@ -15,7 +15,6 @@ package body Export_Tools is
       return Result : Print_Context_Record_Type do
          Result.File := Print_Context.File;
          Result.Indent := Print_Context.Indent + 1;
-         Result.Pretty_Print := Print_Context.Pretty_Print;
       end return;
    end Add_Indent_Level;
 

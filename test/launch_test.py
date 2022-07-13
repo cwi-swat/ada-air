@@ -13,7 +13,7 @@ RED = '\033[31m'
 ENDC = '\033[m'
 GREEN = '\033[32m'
 
-libs = ["libadalang", "xmlada", "gnatcoll", "langkit_support", "aws", "ada_drivers_library", "Ada_Runtime"]
+libs = ["libadalang", "xmlada", "gnatcoll", "langkit_support", "aws", "ada_drivers_library", "Ada_Runtime", "Dependency_Graph_Extractor_Ada"]
 # new lib : gnatstudio, gtkada, cudada, AdaDoom3, tamp, sdlada, ada-crypto-library, HAC
 print_lock = threading.Lock()
 queue_lock = threading.Lock()

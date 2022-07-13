@@ -51,11 +51,11 @@ void main(list[str] args=[]) {
          try {
             U = importAdaAST(f);
             if (!allNodesHaveASource(U) || !allNodesAreOrdered(U))
-               println("Assertion failled : " + f.path); 
+               println("Assertion failed : " + f.path); 
          }
-         catch IO(msg): {
-            println (msg);
-            println("failled to parse " + f.path);
+         catch Java(class, msg): {
+            println (class + " " + msg);
+            println("failed to parse " + f.path);
          }
       }
     }

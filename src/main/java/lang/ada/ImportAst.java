@@ -20,14 +20,20 @@ public class ImportAst {
         System.loadLibrary("native");
     }
     
-    public void importAdaAst(ISourceLocation adaFile, ISourceLocation outFile) {
+    public void importAdaAst(ISourceLocation adaFile, ISourceLocation outFile) throws AdaException {
+        String adaFileName, outFileName;
         try {
-            String adaFileName = locToString(URIResolverRegistry.getInstance().logicalToPhysical(adaFile));
-            String outFileName = locToString(URIResolverRegistry.getInstance().logicalToPhysical(outFile));
-            this._importAdaAst(adaFileName, outFileName);
+            adaFileName = locToString(URIResolverRegistry.getInstance().logicalToPhysical(adaFile));
+            outFileName = locToString(URIResolverRegistry.getInstance().logicalToPhysical(outFile));
         } 
         catch (IOException e) {
             throw RuntimeExceptionFactory.io(e.getMessage());
+        }
+        try {
+            this._importAdaAst(adaFileName, outFileName);
+        }
+        catch (AdaException e) {
+            throw RuntimeExceptionFactory.javaException(e, null, null);
         }
     }
 
@@ -41,5 +47,5 @@ public class ImportAst {
         }
     }
 
-    private native void _importAdaAst(String adaFileName, String outFileName);
+    private native void _importAdaAst(String adaFileName, String outFileName) throws AdaException;
 }

@@ -13,8 +13,7 @@ package Export_Tools is
 
    type Print_Context_Record_Type is record
       File         : File_Type_Access;
-      Indent       : Natural;
-      Pretty_Print : Boolean;
+      Indent       : Natural;  -- used only on debug mode
    end record;
    
    type Type_Context_Record_Type is record
