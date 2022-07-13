@@ -143,7 +143,7 @@ class Test:
 
 def main(jobs):
     st = time.time()
-    failledTest = 0
+    failedTest = 0
     successfulTest = 0
     skippedTest = 0
     test_dir = os.path.dirname(__file__)
@@ -190,16 +190,16 @@ def main(jobs):
             if t.getResult():
                 successfulTest += 1
             else:
-                failledTest += 1
+                failedTest += 1
 
-        total = successfulTest + failledTest
+        total = successfulTest + failedTest
         print(10*"-" + " Result " + 10*"-")
         print(f"{successfulTest}/{total}")
         print(f"{skippedTest} tests skipped")
         end = time.time()
         print(time.strftime("%Hh%Mm%Ss", time.gmtime(end-st)))
 
-    if failledTest != 0 or not setup:
+    if failedTest != 0 or not setup:
         sys.exit(1)
 
 
