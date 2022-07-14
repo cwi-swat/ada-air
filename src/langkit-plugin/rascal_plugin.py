@@ -1,10 +1,11 @@
 import os
 from rascal_constructor import RascalConstructor
 from rascal_data_types import RascalDataTypes
-from type_mapping import *
+from rascal_context import RascalContext
 import langkit.passes
 from langkit.compile_context import CompileCtx
 from mako.template import Template
+from chained_constructor import Expr_Or_Assoc, Stmt_Or_Decl
 
 
 class RascalPass(langkit.passes.AbstractPass):
@@ -19,6 +20,8 @@ class RascalPass(langkit.passes.AbstractPass):
     def __init__(self, debug = False):
         super().__init__("rascal plugin pass")
         self.debug = debug
+        RascalContext.chained_constructors.append(Expr_Or_Assoc)
+        RascalContext.chained_constructors.append(Stmt_Or_Decl)
 
 
     def run(self, context: CompileCtx) -> None:
@@ -79,8 +82,9 @@ class RascalPass(langkit.passes.AbstractPass):
         with open(RascalPass.templates_dir + "rascal_ast.mako") as f:
             templateStr = f.read()
         tmp = Template(templateStr)
+
         with open(output_dir + 'AST.rsc', 'w') as f:
-            f.write(tmp.render(types=rascal_types, types_extended_from_m3=types_extended_from_m3))
+            f.write(tmp.render(types=rascal_types, RascalContext=RascalContext))
 
     def emit_exportation_function(self, context: CompileCtx):
         output_dir = os.path.dirname(__file__) + "/../main/ada/src/"
@@ -91,7 +95,7 @@ class RascalPass(langkit.passes.AbstractPass):
             templateStr = f.read()
         tmp = Template(templateStr)
         with open(output_dir + 'export_ast.adb', 'w') as f:
-            f.write(tmp.render(ctx=context, inlined_prefix_nodes = RascalPass.inlined_prefix_nodes, chained_constructor_fun = chained_constructor_fun, field_with_chained_constructor =  field_with_chained_constructor, get_chained_constructor= get_chained_constructor, decl_functions=decl_functions, debug=self.debug))
+            f.write(tmp.render(ctx=context, inlined_prefix_nodes = RascalPass.inlined_prefix_nodes, RascalContext=RascalContext, debug=self.debug))
 
 
 class DebugRascalPass(RascalPass):

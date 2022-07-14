@@ -16,22 +16,36 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 module lang::ada::AST
 extend analysis::m3::AST;
 
-import IO;
-import List;
 alias Ada_Node = node;
 alias Maybe[&T] = list[&T];
 
 data Entry_Point = Compilation_Units_Kind (list[Compilation_Unit] As_Compilation_Units)
 | Statements_Kind (list[Statement] As_Statements);
 
-data Stmt_Or_Decl(loc src=|unknown:///|) = decl_kind(Declaration As_Decl) 
-| stmt_kind(Statement As_Stmt);
-
-data Expr_Or_Assoc(loc src=|unknown:///|) = expr_kind(Expression As_Expr) 
-| assoc_kind(list[Assoc] As_Assoc);
+% for t in RascalContext.chained_constructors:
+data ${t.get_name()}(loc src=|unknown:///|) =\
+<%
+vertical_bar = " "
+%>\
+        % for c in t.get_constructors():
+${vertical_bar}${c.get_name()}(\
+<%
+vertical_bar = "| "
+comma = ""
+%>\
+                % for field_name, field_type in c.get_fields().items():
+${comma}${field_type} ${field_name}\
+<%
+comma = ", "
+%>\
+                % endfor
+)
+        % endfor
+;
+% endfor
 
     % for type_name, constructors in types.get_types().items():
-        % if type_name in types_extended_from_m3:
+        % if type_name in RascalContext.types_extended_from_m3:
 data ${type_name} =\
         % else:
 data ${type_name}(loc src=|unknown:///|) =\

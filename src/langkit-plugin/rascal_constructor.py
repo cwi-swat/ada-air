@@ -1,7 +1,6 @@
 from collections import OrderedDict
 from langkit.compiled_types import Field
-from type_mapping import *
-from rascal_data_types import RascalDataTypes
+from rascal_context import RascalContext
 
 class RascalConstructor:
 
@@ -23,47 +22,57 @@ class RascalConstructor:
         field_type = field.type.entity.astnode
         field_type_name = None
         if field_type.is_list:
-            if field.precise_element_types.minimal_common_type.is_root_node:
-                s = set({RascalDataTypes.get_associated_rascal_type(n) for n in field.precise_element_types.minimal_matched_types})
-                if len(s) == 1:
+            # If the returned node of this function is an Ada_Node or Ada_Node_List we try to found
+            if field.precise_element_types.minimal_common_type.is_root_node or field.precise_element_types.minimal_common_type.is_root_list_type:
+                s = set({RascalContext.get_associated_rascal_type(n) for n in field.precise_element_types.minimal_matched_types})
+                if len(s) == 1 and s != {"Ada_Node"}:
                     field_type_name = f"list[{s.pop()}]"
-                elif s == {"Declaration", "Statement"}:
-                    field_type_name = f"list[Stmt_Or_Decl]"
-                    field_with_chained_constructor.add(field)
-                elif s == {"Expression", "Assoc"}:
-                    field_type_name = f"list[Expr_Or_Assoc]"
-                    field_with_chained_constructor.add(field)
                 else:
-                    print("Warning Ada_Node not resolve " + str(s))
-                    element_contained = field_type.element_type
-                    field_type_name = f"list[{RascalDataTypes.get_associated_rascal_type(element_contained)}]"
+                    for c in RascalContext.chained_constructors:
+                        if s == c.get_associated_rascal_types():
+                            field_type_name = f"list[{c.get_name()}]"
+                            RascalContext.field_with_chained_constructor.add(field)       
+                    if field_type_name is None:
+                        # This condition needs to be removed when a new version of LAL including this fix is released in Alire
+                        # https://github.com/AdaCore/libadalang/issues/945
+                        if self._name == "component_list" and field.api_name.lower == "f_components":
+                            field_type_name = f"list[Stmt_Or_Decl]"
+                            RascalContext.field_with_chained_constructor.add(field)    
+                        else:
+                            print(f"Warning Ada_Node not resolve for: {self._name} {field.api_name.camel_with_underscores}")
+                            element_contained = field_type.element_type
+                            field_type_name = f"list[{RascalContext.get_associated_rascal_type(element_contained)}]"
+                            
             else:
                 element_contained = field_type.element_type
-                field_type_name = f"list[{RascalDataTypes.get_associated_rascal_type(element_contained)}]"
+                field_type_name = f"list[{RascalContext.get_associated_rascal_type(element_contained)}]"
         elif field_type.is_bool_node:
             inheritance_chain = field_type.get_inheritance_chain()
-            # ValueIO.readTextValueFile can't read Maybe field, we are using set instead
-            # To remove when the bug is fixed
-            # https://github.com/usethesource/rascal/issues/1615
-            field_type_name = f"Maybe[{RascalDataTypes.get_associated_rascal_type(field_type)}]"
+            # Maybe are just an alias of List in rascal
+            field_type_name = f"Maybe[{RascalContext.get_associated_rascal_type(field_type)}]"
 
         else:
             if field.precise_types.minimal_common_type.is_root_node:
-                s = set({RascalDataTypes.get_associated_rascal_type(n) if not n.is_list else RascalDataTypes.get_associated_rascal_type(n.element_type)
+                s = set({RascalContext.get_associated_rascal_type(n) if not n.is_list else RascalContext.get_associated_rascal_type(n.element_type)
                          for n in field.precise_types.minimal_matched_types})
-                if len(s) == 1:
+                if len(s) == 1 and s != {"Ada_Node"}:
                     field_type_name = s.pop()
-                elif s == {"Declaration", "Statement"}:
-                    field_type_name = "Stmt_Or_Decl"
-                    field_with_chained_constructor.add(field)
-                elif s == {"Expression", "Assoc"}:
-                    field_type_name = "Expr_Or_Assoc"
-                    field_with_chained_constructor.add(field)
                 else:
-                    print("Warning Ada_Node not resolve " + str(s))
-                    field_type_name = RascalDataTypes.get_associated_rascal_type(field_type)
+                    for c in RascalContext.chained_constructors:
+                        if s == c.get_associated_rascal_types():
+                            field_type_name = c.get_name()
+                            RascalContext.field_with_chained_constructor.add(field)       
+                    if field_type_name is None:
+                        # This condition needs to be removed when a new version of LAL including this fix is released in Alire
+                        # https://github.com/AdaCore/libadalang/issues/945
+                        if self._name == "attribute_ref" or self._name == "update_attribute_ref" and field.api_name.lower == "f_args":
+                            field_type_name = "Expr_Or_Assoc"
+                            RascalContext.field_with_chained_constructor.add(field)
+                        else:
+                            print(f"Warning Ada_Node not resolve for: {self._name} {field.api_name.camel_with_underscores}")
+                            field_type_name = RascalContext.get_associated_rascal_type(field_type)
             else:
-                field_type_name = RascalDataTypes.get_associated_rascal_type(field_type)
+                field_type_name = RascalContext.get_associated_rascal_type(field_type)
 
             if field.is_optional:
                 field_type_name = "Maybe[" + field_type_name + "]" # optional fields can be null

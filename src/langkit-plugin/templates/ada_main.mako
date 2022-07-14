@@ -3,14 +3,14 @@ def get_decl(n):
    hasDecl = False
    props = [p.api_name.camel_with_underscores for p in n.get_properties(predicate=lambda p: p.is_public)]
    fun = None
-   for key in decl_functions:
+   for key in RascalContext.decl_functions:
       if key in props:
          hasDecl = True
          fun = key
          break
    if not hasDecl:
       return None
-   args = decl_functions[fun]
+   args = RascalContext.decl_functions[fun]
    call = None
    if len(args) > 0:
       call = "N.As_{}.{}({})".format(n.public_type.api_name.camel_with_underscores, fun, ",".join(args))
@@ -104,9 +104,13 @@ package body Export_Ast is
                % if debug:
             Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO.Put (F.all, Prefix);
                % endif
-               % if get_chained_constructor(n) is not None:
+               % if RascalContext.can_uses_chained_constructors(n):
+               <% """ Handling list[Expr_Or_Assoc] 
+                  assoc_kind(list[Assoc] As_Assoc) => [assoc_kind([..., ..., ...])]                      
+               """ %>\
             if Type_Context.Need_Chained_Constructor then
-               Ada.Wide_Wide_Text_IO.Put (F.all, "${get_chained_constructor(n)}(");
+               Ada.Wide_Wide_Text_IO.Put (F.all, "[");
+               Ada.Wide_Wide_Text_IO.Put (F.all, "${RascalContext.get_chained_constructor(n)}(");
             end if;
                % endif
             Ada.Wide_Wide_Text_IO.Put (F.all, "[");
@@ -114,7 +118,7 @@ package body Export_Ast is
                if not IsEmpty then
                   Ada.Wide_Wide_Text_IO.Put (F.all, ","); -- no list of maybe
                end if;
-               % if get_chained_constructor(n) is not None:
+               % if RascalContext.can_uses_chained_constructors(n):
                Export_Ast_To_Rascal (Print_Context => Export_Tools.Add_Indent_Level (Print_Context),
                                      Type_Context => (N                      => Node.As_Ada_Node,
                                                     Is_Optional              => False,
@@ -128,11 +132,12 @@ package body Export_Ast is
                IsEmpty := False;
             end loop;
             Ada.Wide_Wide_Text_IO.Put (F.all, "]");
-               % if get_chained_constructor(n) is not None:
+               % if RascalContext.can_uses_chained_constructors(n):
             if Type_Context.Need_Chained_Constructor then
                Ada.Wide_Wide_Text_IO.Put (F.all, ",");
                Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO.Put (F.all, src);
                Ada.Wide_Wide_Text_IO.Put (F.all, ")");
+               Ada.Wide_Wide_Text_IO.Put (F.all, "]");
             end if;
                % endif
          end;
@@ -169,9 +174,9 @@ package body Export_Ast is
             Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO.Put (F.all, Prefix);
                   % endif
             Ada.Wide_Wide_Text_IO.Put (F.all, Opt);
-                 % if get_chained_constructor(n) is not None:
+                 % if RascalContext.can_uses_chained_constructors(n):
             if Type_Context.Need_Chained_Constructor then
-               Ada.Wide_Wide_Text_IO.Put (F.all, "${get_chained_constructor(n)}(");
+               Ada.Wide_Wide_Text_IO.Put (F.all, "${RascalContext.get_chained_constructor(n)}(");
             end if;
                   % endif
             Ada.Wide_Wide_Text_IO.Put (F.all, "${inlined_prefix_nodes[n.public_type.api_name.lower]}");
@@ -190,7 +195,7 @@ package body Export_Ast is
             Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO.Put (F.all, Prefix);
                   % endif
             Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO.Put (F.all, src);
-                 % if get_chained_constructor(n) is not None:
+                 % if RascalContext.can_uses_chained_constructors(n):
             if Type_Context.Need_Chained_Constructor then
                Ada.Wide_Wide_Text_IO.Put (F.all, "),");
                Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO.Put (F.all, src);
@@ -220,9 +225,9 @@ package body Export_Ast is
                Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO.Put (F.all, Prefix);
                % endif
                Ada.Wide_Wide_Text_IO.Put (F.all, Opt);
-               % if get_chained_constructor(n):
+               % if RascalContext.can_uses_chained_constructors(n):
                if Type_Context.Need_Chained_Constructor then
-                  Ada.Wide_Wide_Text_IO.Put (F.all, "${get_chained_constructor(n)}(");
+                  Ada.Wide_Wide_Text_IO.Put (F.all, "${RascalContext.get_chained_constructor(n)}(");
                end if;
                % endif
                Ada.Wide_Wide_Text_IO.Put (F.all, "${n.public_type.api_name.lower}(");
@@ -238,7 +243,7 @@ package body Export_Ast is
                Export_Ast_To_Rascal (Print_Context => Export_Tools.Add_Indent_Level (Print_Context),
                                     Type_Context => (N                      => N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}.As_Ada_Node,
                                                    Is_Optional              => ${field.is_optional},
-                                                   Need_Chained_Constructor => ${field in field_with_chained_constructor}));
+                                                   Need_Chained_Constructor => ${field in RascalContext.field_with_chained_constructor}));
                Ada.Wide_Wide_Text_IO.Put (F.all, ",");
                % endfor               
                % if debug:
@@ -249,7 +254,7 @@ package body Export_Ast is
                Ada.Wide_Wide_Text_IO.Put (F.all, ",");
                Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO.Put (F.all, decl);
                % endif
-               % if get_chained_constructor(n):
+               % if RascalContext.can_uses_chained_constructors(n):
                if Type_Context.Need_Chained_Constructor then
                   Ada.Wide_Wide_Text_IO.Put (F.all, "),");
                   Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO.Put (F.all, src);

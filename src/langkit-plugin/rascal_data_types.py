@@ -1,30 +1,20 @@
 from langkit.compiled_types import CompiledType, ASTNodeType
-from type_mapping import *
+from rascal_context import RascalContext
+from rascal_constructor import RascalConstructor
 
 class RascalDataTypes:
 
     def __init__(self):
         self._types = dict({})  # {Key : type name (camel case with underscore), Value : List of Constructors}
 
-    def add_constructor(self, t: CompiledType, constructor):
-        type_name = RascalDataTypes.get_associated_rascal_type(t)
+    def add_constructor(self, t: CompiledType, constructor : RascalConstructor):
+        type_name = RascalContext.get_associated_rascal_type(t)
         if type_name not in self._types:
             self._types[type_name] = []
         self._types[type_name].append(constructor)
 
     def get_types(self) -> dict:
         return self._types.copy()
-
-    @staticmethod
-    def get_associated_rascal_type(t: ASTNodeType) -> str:
-        if t.is_root_node:
-            return t.public_type.api_name.camel_with_underscores
-        else:
-            name = t.get_inheritance_chain()[1].public_type.api_name.lower
-            for rascal_type_name, lal_types_name in racal_types_mapping.items():
-                if name in lal_types_name:
-                    return rascal_type_name
-            raise RuntimeError(f"{name} not present in _rascal_types")
 
     @staticmethod
     def __compute_suffix(name: str) -> str:
@@ -45,16 +35,24 @@ class RascalDataTypes:
     def __compute_renaming_rules(redeclarations: dict) -> dict[str, [tuple[str, str]]]:
         renaming_rules = {}  # {key: field name, value: list of (old type name, new field name)}
         for field_name, types in redeclarations.items():
+            naming_convention = {"Declaration" : "Decl", # these 3 types extends m3 types but here we need their Libadalang names
+                                "Statement" : "Stmt",
+                                "Expression" : "Expr"}
             priority = dict({}) # {key: type name, value: priority (int 1-5)}
             # 1 (Low priority) : X F_X. e.g. Stmt F_Stmt
             # 2 : Ada_Node
             # 3 : others
             # 4 : Short name without underscore
             # 5 : Optional field e.g. Maybe[..]
+            # 6 : List
             for t in types:
-                if t.startswith("set["):
+                if t.startswith("Maybe["):
                     priority[t] = 5
+                elif t.startswith("list["):
+                    priority[t] = 6
                 elif t in field_name:
+                    priority[t] = 1
+                elif t in naming_convention and naming_convention[t] in field_name:
                     priority[t] = 1
                 elif t.find("_") == -1:
                     priority[t] = 4
@@ -70,6 +68,8 @@ class RascalDataTypes:
             for type_name, prio in sorted_priority.items():
                 if prio == 5:
                     renaming_rules[field_name].append((type_name, field_name + "_Maybe"))
+                elif prio == 6:
+                    renaming_rules[field_name].append((type_name, field_name + "_List"))
                 elif prio == 2:
                     renaming_rules[field_name].append((type_name, field_name + "_Node"))
                 else:
