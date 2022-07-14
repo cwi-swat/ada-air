@@ -57,6 +57,10 @@ void main(list[str] args=[]) {
             println (class + " " + msg);
             println("failed to parse " + f.path);
          }
+        catch IO(msg): {
+            println ("IO: " + msg);
+            println("failed to parse " + f.path);
+         }
       }
     }
 }

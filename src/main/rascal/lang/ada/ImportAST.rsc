@@ -21,6 +21,7 @@ import ValueIO;
 import util::UUID;
 import util::Math;
 import util::SystemAPI;
+import Exception;
 
 @doc{
 .Synopsis
@@ -31,7 +32,13 @@ Entry_Point importAdaAST(loc file) {
     str out_file = getSystemEnvironment()["TMP"] + "/out" + toString(uuidi()) + ".txt";
     loc out = |file:///| + out_file;
     importAdaAst(file, out);
-    return readTextValueFile(#Entry_Point, out);
+    try {
+        return readTextValueFile(#Entry_Point, out);
+    }
+    catch IO(msg): {
+        str m = msg + " while parsing " + out.path;
+        throw IO(m);
+    }
 }
 
 @doc{
