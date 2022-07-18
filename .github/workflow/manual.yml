@@ -1,0 +1,115 @@
+name: tests
+on: push
+
+jobs:
+  building_and_testing:
+    runs-on: ubuntu-latest
+    env:
+      ADA_AIR: ${{ github.workspace }}/ada-air/
+    steps:
+    # installing everything
+    - name: cloning ada-air
+      uses: actions/checkout@v3
+      with:
+        path: 'ada-air'
+
+    - name: cloning libadalang
+      uses: actions/checkout@v3
+      with:
+        repository: 'AdaCore/libadalang'
+        path: 'libadalang'
+        ref: '22.0'
+
+    - name: cloning langkit
+      uses: actions/checkout@v3
+      with:
+        repository: 'AdaCore/langkit'
+        path: 'langkit'
+        ref: '22.0'
+
+    # only for tests
+    - name: cloning aws
+      uses: actions/checkout@v3
+      with:
+        repository: 'AdaCore/aws'
+        path: 'aws'
+        ref: 'master'
+
+    # only for tests
+    - name: cloning Ada_Drivers_Library
+      uses: actions/checkout@v3
+      with:
+        repository: 'AdaCore/Ada_Drivers_Library'
+        path: 'Ada_Drivers_Library'
+        ref: 'master'
+
+    # only for tests
+    - name: cloning Dependency_Graph_Extractor-Ada
+      uses: actions/checkout@v3
+      with:
+        repository: 'TNO/Dependency_Graph_Extractor-Ada'
+        path: 'Dependency_Graph_Extractor-Ada'
+        ref: 'main'
+
+    - name: installing python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: installing langkit
+      run: pip install ./langkit/
+
+    - name: installing java
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'microsoft'
+        java-version: '11'
+
+    - name: installing Maven
+      uses: stCarolas/setup-maven@v4.4
+      with:
+        maven-version: 3.8.6
+
+    - name: downloading rascal jar
+      run: curl -o rascal-shell-stable.jar https://update.rascal-mpl.org/console/rascal-shell-stable.jar
+
+    - name: installing alire
+      uses: alire-project/setup-alire@v1
+
+
+
+    # generating source code and conpiling it
+    - name: running rascal plugin
+      run: cd ada-air; PYTHONPATH=$PWD/src/langkit-plugin/ ../libadalang/manage.py generate --plugin-pass=rascal_plugin.RascalPass
+
+    - name: compilling ada library
+      run: cd ada-air/src/main/ada; alr build -- -XLIBRARY_TYPE=relocatable -XRASCAL_OS=unix
+
+    - name: compiling java sources
+      run: cd ada-air; mvn compile
+
+
+
+    # launching tests
+    - name: setting environment variables
+      run: |
+        echo "LIBADALANG_PATH=$(find $ADA_AIR/src/main/ada/alire/ -type d -name libadalang_*)" >> $GITHUB_ENV
+        echo "GNATCOLL_PATH=$(find $ADA_AIR/src/main/ada/alire/ -type d -name gnatcoll_2*)" >> $GITHUB_ENV
+        echo "XMLADA_PATH=$(find $ADA_AIR/src/main/ada/alire/ -type d -name xmlada_*)" >> $GITHUB_ENV
+        echo "LANGKIT_SUPPORT_PATH=$(find $ADA_AIR/src/main/ada/alire/ -type d -name langkit_support_*)" >> $GITHUB_ENV
+        echo "ADA_RUNTIME_PATH=$(find /home/runner/.config/alire/cache/dependencies/gnat_native_* -type d -name adainclude)" >> $GITHUB_ENV
+
+    - name: runing tests
+      run: cd ada-air/test/; python launch_test.py 2
+      env:
+        RASCAL_JAR: ${{ github.workspace }}/rascal-shell-stable.jar
+        TMP: ${{ runner.temp }}
+        LD_PRELOAD: ${{ env.JAVA_HOME }}/lib/libjsig.so
+        LIBADALANG_PATH: ${{ env.LIBADALANG_PATH }}
+        GNATCOLL_PATH: ${{ env.GNATCOLL_PATH }}
+        XMLADA_PATH: ${{ env.XMLADA_PATH }}
+        LANGKIT_SUPPORT_PATH: ${{ env.LANGKIT_SUPPORT_PATH }}
+        ADA_RUNTIME_PATH: ${{ env.ADA_RUNTIME_PATH }}
+        AWS_PATH: ${{ github.workspace }}/aws/
+        ADA_DRIVERS_LIBRARY_PATH: ${{ github.workspace }}/Ada_Drivers_Library/
+        DEPENDENCY_GRAPH_EXTRACTOR_ADA_PATH: ${{ github.workspace }}/Dependency_Graph_Extractor-Ada/
