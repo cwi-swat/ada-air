@@ -83,7 +83,7 @@ jobs:
       run: cd ada-air; PYTHONPATH=$PWD/src/langkit-plugin/ ../libadalang/manage.py generate --plugin-pass=rascal_plugin.RascalPass
 
     - name: compilling ada library
-      run: cd ada-air/src/main/ada; alr build -- -XLIBRARY_TYPE=relocatable -XRASCAL_OS=unix
+      run: cd ada-air/src/main/ada; alr build
 
     - name: compiling java sources
       run: cd ada-air; mvn compile
@@ -99,7 +99,7 @@ jobs:
         echo "LANGKIT_SUPPORT_PATH=$(find $ADA_AIR/src/main/ada/alire/ -type d -name langkit_support_*)" >> $GITHUB_ENV
         echo "ADA_RUNTIME_PATH=$(find /home/runner/.config/alire/cache/dependencies/gnat_native_* -type d -name adainclude)" >> $GITHUB_ENV
 
-    - name: runing tests
+    - name: running tests
       run: cd ada-air/test/; python launch_test.py 2
       env:
         RASCAL_JAR: ${{ github.workspace }}/rascal-shell-stable.jar

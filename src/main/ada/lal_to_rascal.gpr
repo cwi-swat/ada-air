@@ -18,7 +18,7 @@ library project lal_to_rascal is
 	end case;
 
    for Languages use ("ada", "c");
-   for Library_Name use "native";
+   for Library_Name use "lal_to_rascal";
    for Library_Kind use "dynamic";
    for Library_Dir use "lib";
    for Source_Dirs use ("src");

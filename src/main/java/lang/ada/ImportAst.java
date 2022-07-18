@@ -17,7 +17,7 @@ public class ImportAst {
 	}
 
     static {
-        System.loadLibrary("native");
+        System.loadLibrary("lal_to_rascal");
     }
     
     public void importAdaAst(ISourceLocation adaFile, ISourceLocation outFile) throws AdaException {

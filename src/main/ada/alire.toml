@@ -7,6 +7,14 @@ tags = ["analysis", "manipulation", "transformation", "rascal"]
 
 authors = ["Pierre van de Laar", "Damien De Campos", "Jurgen J. Vinju"]
 
+[gpr-set-externals]
+LIBRARY_TYPE = "relocatable"
+
+[gpr-set-externals.'case(os)']
+linux   = { RASCAL_OS = "unix" }
+windows = { RASCAL_OS = "windows" }
+macos = { RASCAL_OS = "osx" }
+
 [[depends-on]]
 libadalang = "^22.0.0"
 Langkit_Support="^22.0.0"
