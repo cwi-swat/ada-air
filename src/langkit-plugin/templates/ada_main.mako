@@ -105,11 +105,11 @@ package body Export_Ast is
             Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO.Put (F.all, Prefix);
                % endif
                % if RascalContext.can_uses_chained_constructors(n):
-               <% """ Handling list[Expr_Or_Assoc] 
-                  assoc_kind(list[Assoc] As_Assoc) => [assoc_kind([..., ..., ...])]                      
+               <% """ Handling Maybe[Expr_Or_Assoc] 
+                  Maybe[assoc_kind(list[Assoc] As_Assoc)] => [assoc_kind([..., ..., ...])]
                """ %>\
             if Type_Context.Need_Chained_Constructor then
-               Ada.Wide_Wide_Text_IO.Put (F.all, "[");
+               Ada.Wide_Wide_Text_IO.Put (F.all, Opt);
                Ada.Wide_Wide_Text_IO.Put (F.all, "${RascalContext.get_chained_constructor(n)}(");
             end if;
                % endif
@@ -137,7 +137,7 @@ package body Export_Ast is
                Ada.Wide_Wide_Text_IO.Put (F.all, ",");
                Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO.Put (F.all, src);
                Ada.Wide_Wide_Text_IO.Put (F.all, ")");
-               Ada.Wide_Wide_Text_IO.Put (F.all, "]");
+               Ada.Wide_Wide_Text_IO.Put (F.all, End_Opt);
             end if;
                % endif
          end;
