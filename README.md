@@ -24,4 +24,4 @@ You can now compile the Ada library generated in [src/main/ada](https://github.c
 
 Last step is to compile the Java classes using maven with: `mvn compile` 
 
-To ease the use of this new rascal module, I advice you to add the directory containing the Ada library into your PATH (windows)/LD_LIBRARY_PATH (linux).
+To ease the use of this new rascal module, I invit you to add the directory containing the Ada library into your PATH (windows)/LD_LIBRARY_PATH (linux).
