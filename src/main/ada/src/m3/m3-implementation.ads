@@ -31,7 +31,7 @@ private package M3.Implementation is
    
    function Rascal_Fully_Qualified_Name (N : Libadalang.Analysis.Defining_Name) return Wide_Wide_String;
    
-   function Get_Rascal_Physical_Location (N : Libadalang.Analysis.Ada_Node'Class) return M3.URI_Utils.URI;
+   function Get_Rascal_Physical_Location (N : Libadalang.Analysis.Ada_Node'Class) return URI_Utils.URI;
    
    function Get_Rascal_Logical_Location (N : Libadalang.Analysis.Basic_Decl'Class; Name : Libadalang.Analysis.Name := Libadalang.Analysis.No_Name) return Wide_Wide_String;
        

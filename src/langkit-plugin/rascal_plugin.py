@@ -94,14 +94,14 @@ class RascalPass(langkit.passes.AbstractPass):
             f.write(tmp.render(types=rascal_types, RascalContext=RascalContext))
 
     def emit_exportation_function(self, context: CompileCtx):
-        output_dir = os.path.dirname(__file__) + "/../main/ada/src/"
+        output_dir = os.path.dirname(__file__) + "/../main/ada/src/export/"
         if not os.path.isdir(output_dir):
             os.mkdir(output_dir)
         # Work-arround on windows to avoid blank lines 
         with open(RascalPass.templates_dir + "ada_main.mako") as f:
             templateStr = f.read()
         tmp = Template(templateStr)
-        with open(output_dir + 'export_ast.adb', 'w') as f:
+        with open(output_dir + 'export-ast.adb', 'w') as f:
             f.write(tmp.render(ctx=context, inlined_prefix_nodes = RascalPass.inlined_prefix_nodes, RascalContext=RascalContext, debug=self.debug))
 
 

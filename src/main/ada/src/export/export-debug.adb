@@ -4,7 +4,7 @@ with Ada.Strings.Unbounded;
 with Ada.Directories;
 with ada.Strings.Fixed;
   
-package body Export_Debug_Tools is
+package body Export.Debug is
    package LALCO renames Libadalang.Common;
    
 
@@ -46,4 +46,4 @@ package body Export_Debug_Tools is
    end Load_Constructors_Used;
    
 
-end Export_Debug_Tools;
+end Export.Debug;

@@ -94,12 +94,12 @@ package body M3.Implementation is
   
    
    function Get_Rascal_Physical_Location
-     (N : LAL.Ada_Node'Class) return M3.URI_Utils.URI
+     (N : LAL.Ada_Node'Class) return URI_Utils.URI
    is      
    begin
       if not N.Is_Null then
          declare
-            Loc : constant URI_Utils.Location_Record_Type := M3.URI_Utils.Location (N);
+            Loc : constant URI_Utils.Location_Record_Type := URI_Utils.Location (N);
             -- work-arround Rascal doesn't allow backslash
             FileName : constant Wide_Wide_String :=
               Strings_Utils.Replace
@@ -107,10 +107,10 @@ package body M3.Implementation is
                    (N.Unit.Get_Filename),
                  "\", "/");
          begin
-            return M3.URI_Utils.Create_URI ("file", FileName, Loc);
+            return URI_Utils.Create_URI ("file", FileName, Loc);
          end;
       else
-         return M3.URI_Utils.Null_URI;
+         return URI_Utils.Null_URI;
       end if;
    end Get_Rascal_Physical_Location;
    
@@ -119,7 +119,7 @@ package body M3.Implementation is
      (N : LAL.Basic_Decl'Class; Name : LAL.Name := LAL.No_Name) return Wide_Wide_String
    is
       use Ada.Strings.Wide_Wide_Unbounded;
-      use M3.URI_Utils;
+      use URI_Utils;
 
       Res   : Unbounded_Wide_Wide_String    := Null_Unbounded_Wide_Wide_String;
            

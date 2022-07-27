@@ -14,7 +14,7 @@ package body M3.Analysis is
       use Ada.Strings.Wide_Wide_Unbounded;
    begin
       if not N.Is_Null then
-         return To_Unbounded_Wide_Wide_String ("src=" & M3.Implementation.Get_Rascal_Physical_Location (N));
+         return To_Unbounded_Wide_Wide_String ("src=" & Implementation.Get_Rascal_Physical_Location (N));
       else
          return Null_Unbounded_Wide_Wide_String;
       end if;
@@ -29,7 +29,7 @@ package body M3.Analysis is
       begin
          if not Decl_Node.Is_Null then
             declare
-               S : constant Wide_Wide_String := M3.Implementation.Get_Rascal_Logical_Location (Decl_Node, Decl_Node.P_Defining_Name.F_Name);
+               S : constant Wide_Wide_String := Implementation.Get_Rascal_Logical_Location (Decl_Node, Decl_Node.P_Defining_Name.F_Name);
             begin
                if S'Length > 0 then
                   Decl := To_Unbounded_Wide_Wide_String (",use=" & S);
@@ -47,7 +47,7 @@ package body M3.Analysis is
       use Ada.Strings.Wide_Wide_Unbounded;
    begin
       declare
-         S : constant Wide_Wide_String :=  M3.Implementation.Get_Rascal_Logical_Location (N);
+         S : constant Wide_Wide_String :=  Implementation.Get_Rascal_Logical_Location (N);
       begin
          if S'Length > 0 then
             return  To_Unbounded_Wide_Wide_String (",declaration=" & S);
@@ -68,7 +68,7 @@ package body M3.Analysis is
       begin
          if not Parent_Node.Is_Null then
             declare
-               S : constant Wide_Wide_String := M3.Implementation.Get_Rascal_Logical_Location (Parent_Node);
+               S : constant Wide_Wide_String := Implementation.Get_Rascal_Logical_Location (Parent_Node);
             begin
                if S'Length > 0 then
                   return To_Unbounded_Wide_Wide_String (",containment=" & S);

@@ -13,36 +13,38 @@ with Ada.Text_IO;
 with Ada.Wide_Wide_Text_IO;
 with Libadalang.Analysis;
 with Libadalang.Common;
+% if debug:
 with Ada.Strings.Wide_Wide_Fixed;
 with Ada.Characters.Wide_Wide_Latin_1;
+% endif
 with Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO;
 with Strings_Utils;
-with Export_Tools;
+with Export.Context;
 with Ada.Wide_Wide_Characters.Handling;
 with Ada.Exceptions;
 with M3.Analysis;
 % if debug:
-with Export_Debug_Tools;
+with Export.Debug;
 % endif
 
-package body Export_Ast is
+package body Export.Ast is
    package LAL renames Libadalang.Analysis;
    package LALCO renames Libadalang.Common;
 
    Skip_Index : constant := 8; -- Skipping "Ada_Op_"
 
    % if debug:
-   Constructors_Used : Export_Debug_Tools.Constructors_Used_Array;
+   Constructors_Used : Debug.Constructors_Used_Array;
    Tab : constant Wide_Wide_String := "   ";
    % endif
 
-   procedure Export_Ast_To_Rascal (Print_Context : Export_Tools.Print_Context_Record_Type;
-                                   Type_Context  : Export_Tools.Type_Context_Record_Type) is
-
+   procedure Export_Ast_To_Rascal (Print_Context : Context.Print_Context_Record_Type;
+                                   Type_Context  : Context.Type_Context_Record_Type) is
+   % if debug:
       use Ada.Characters.Wide_Wide_Latin_1;
       use Ada.Strings.Wide_Wide_Unbounded;
       use Ada.Strings.Wide_Wide_Fixed;
-
+   % endif
       N : LAL.Ada_Node renames Type_Context.N;
       F : Ada.Wide_Wide_Text_IO.File_Type renames Print_Context.File.all;
 
@@ -63,10 +65,10 @@ package body Export_Ast is
       end if;
       
       if Is_Root then
-         if N.Kind not in Export_Tools.Entry_Point_Enum_Type then
+         if N.Kind not in Context.Entry_Point_Enum_Type then
             raise Program_Error with N.Kind_Name & "isn't an entry point";
          else
-            case Export_Tools.Entry_Point_Enum_Type (N.Kind) is
+            case Context.Entry_Point_Enum_Type (N.Kind) is
                when LALCO.Ada_Compilation_Unit =>
                   Ada.Wide_Wide_Text_IO.Put (F, "Compilation_Units_Kind([");
                when LALCO.Ada_Compilation_Unit_List =>
@@ -109,12 +111,12 @@ package body Export_Ast is
                   Ada.Wide_Wide_Text_IO.Put (F, ","); -- no list of maybe
                end if;
                % if RascalContext.can_uses_chained_constructors(n):
-               Export_Ast_To_Rascal (Print_Context => Export_Tools.Add_Indent_Level (Print_Context),
+               Export_Ast_To_Rascal (Print_Context => Context.Add_Indent_Level (Print_Context),
                                      Type_Context => (N                      => Node.As_Ada_Node,
                                                     Is_Optional              => False,
                                                     Need_Chained_Constructor => False));
                % else:
-               Export_Ast_To_Rascal (Print_Context => Export_Tools.Add_Indent_Level (Print_Context),
+               Export_Ast_To_Rascal (Print_Context => Context.Add_Indent_Level (Print_Context),
                                     Type_Context => (N                      => Node.As_Ada_Node,
                                                    Is_Optional              => False,
                                                    Need_Chained_Constructor => Type_Context.Need_Chained_Constructor));
@@ -182,7 +184,7 @@ package body Export_Ast is
          Ada.Wide_Wide_Text_IO.Put (F, "(");
                   % for field in n.get_parse_fields(include_inherited=True):
                      % if field.api_name.lower != "f_op":
-         Export_Ast_To_Rascal (Print_Context => Export_Tools.Add_Indent_Level (Print_Context),
+         Export_Ast_To_Rascal (Print_Context => Context.Add_Indent_Level (Print_Context),
                               Type_Context => (N                      => N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}.As_Ada_Node,
                                              Is_Optional              => ${field.is_optional},
                                              Need_Chained_Constructor => False));
@@ -232,7 +234,7 @@ package body Export_Ast is
             Ada.Wide_Wide_Text_IO.Put (F,  ",");
                % endif
                % for field in n.get_parse_fields(include_inherited=True):                               
-            Export_Ast_To_Rascal (Print_Context => Export_Tools.Add_Indent_Level (Print_Context),
+            Export_Ast_To_Rascal (Print_Context => Context.Add_Indent_Level (Print_Context),
                                  Type_Context => (N                      => N.As_${n.public_type.api_name.camel_with_underscores}.${field.api_name.camel_with_underscores}.As_Ada_Node,
                                                 Is_Optional              => ${field.is_optional},
                                                 Need_Chained_Constructor => ${field in RascalContext.field_with_chained_constructor}));
@@ -262,7 +264,7 @@ package body Export_Ast is
       end case;
 
       if Is_Root then
-         case Export_Tools.Entry_Point_Enum_Type (N.Kind) is
+         case Context.Entry_Point_Enum_Type (N.Kind) is
             when LALCO.Ada_Compilation_Unit =>
                Ada.Wide_Wide_Text_IO.Put (F, "])");
             when LALCO.Ada_Compilation_Unit_List =>
@@ -285,7 +287,7 @@ package body Export_Ast is
          end loop;
       else
          % if debug:
-         Constructors_Used := Export_Debug_Tools.Load_Constructors_Used;
+         Constructors_Used := Debug.Load_Constructors_Used;
          % endif
          Ada.Wide_Wide_Text_IO.Create (F, Ada.Wide_Wide_Text_IO.Out_File, Out_File_Name);
          Export_Ast_To_Rascal (Print_Context => (File => F'Unchecked_Access,
@@ -295,7 +297,7 @@ package body Export_Ast is
                                              Need_Chained_Constructor => False));
          Ada.Wide_Wide_Text_IO.Close (F);
          % if debug:
-         Export_Debug_Tools.Save_Constructors_Used (Constructors_Used);
+         Debug.Save_Constructors_Used (Constructors_Used);
          % endif
       end if;
    end Export;
@@ -312,4 +314,4 @@ package body Export_Ast is
             return Interfaces.C.Strings.New_String (Ada.Exceptions.Exception_Name (E) & " " & Ada.Exceptions.Exception_Message (E));
    end Ada_Func_Wrapper;
 
-end Export_Ast;
+end Export.Ast;

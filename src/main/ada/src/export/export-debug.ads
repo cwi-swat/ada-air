@@ -1,5 +1,5 @@
 with Libadalang.Common;
-package Export_Debug_Tools is
+package Export.Debug is
    
    type Constructors_Used_Array is array(Libadalang.Common.Ada_Node_Kind_Type) of Boolean;
    
@@ -7,4 +7,4 @@ package Export_Debug_Tools is
    
    function Load_Constructors_Used return Constructors_Used_Array;
 
-end Export_Debug_Tools;
+end Export.Debug;

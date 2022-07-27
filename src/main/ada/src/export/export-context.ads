@@ -2,7 +2,7 @@ with Libadalang.Analysis;
 with Libadalang.Common;
 with Ada.Wide_Wide_Text_IO;
 
-package Export_Tools is
+package Export.Context is
 
    subtype Entry_Point_Enum_Type is Libadalang.Common.Ada_Node_Kind_Type with Static_Predicate => 
      Entry_Point_Enum_Type in Libadalang.Common.Ada_Compilation_Unit
@@ -25,4 +25,4 @@ package Export_Tools is
    function Add_Indent_Level (Print_Context : Print_Context_Record_Type) 
                               return Print_Context_Record_Type;
    
-end Export_Tools;
+end Export.Context;
