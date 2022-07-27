@@ -1,5 +1,3 @@
-with Libadalang.Analysis;
-with Libadalang.Common;
 with Ada.Text_IO;
 with GNATCOLL.Utils;
 with Ada.Strings.Unbounded;
@@ -7,7 +5,6 @@ with Ada.Directories;
 with ada.Strings.Fixed;
   
 package body Export_Debug_Tools is
-   package LAL renames Libadalang.Analysis;
    package LALCO renames Libadalang.Common;
    
 
@@ -34,7 +31,7 @@ package body Export_Debug_Tools is
          while not Ada.Text_IO.End_Of_File (F) loop
             declare
                Line : constant String := Ada.Text_IO.Get_Line (F);
-               Split : GNATCOLL.Utils.Unbounded_String_Array := GNATCOLL.Utils.Split (Str => Line, On => ':');
+               Split : constant GNATCOLL.Utils.Unbounded_String_Array := GNATCOLL.Utils.Split (Str => Line, On => ':');
                Kind : constant LALCO.Ada_Node_Kind_Type := LALCO.Ada_Node_Kind_Type'Value (Ada.Strings.Unbounded.To_String (Split(Split'First)));
                Value : constant Boolean := Boolean'Value (Ada.Strings.Unbounded.To_String (Split(Split'First + 1)));
             begin

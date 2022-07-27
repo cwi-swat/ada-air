@@ -27,6 +27,7 @@ library project lal_to_rascal is
 
    package Compiler is
       for Default_Switches ("C") use ("-I" & JavaHome & "/include", "-I" & JavaHome & "/include/" & Include_Dir);
+      for Default_Switches ("Ada") use ("-gnatwa", "-gnatwe");
    end Compiler;
 
 end lal_to_rascal;

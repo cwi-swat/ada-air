@@ -25,8 +25,4 @@ package Export_Tools is
    function Add_Indent_Level (Print_Context : Print_Context_Record_Type) 
                               return Print_Context_Record_Type;
    
-   function Get_Rascal_Physical_Location (N : Libadalang.Analysis.Ada_Node'Class) return Wide_Wide_String;
-   
-   function Get_Rascal_Logical_Location (N : Libadalang.Analysis.Basic_Decl'Class) return Wide_Wide_String;
-   
 end Export_Tools;

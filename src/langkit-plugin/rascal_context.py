@@ -35,7 +35,9 @@ class RascalContext:
 
     types_extended_from_m3 = {"Declaration", "Statement", "Expression"}
 
-    decl_functions = dict({"P_Referenced_Decl" : ["False"]})
+    m3_annotation = dict({  "Use" : [], 
+                            "Decl" : [],
+                            "Containment" : []})
 
     field_with_chained_constructor = set({})
 

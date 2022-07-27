@@ -1,4 +1,3 @@
-from copyreg import constructor
 from langkit.compiled_types import ASTNodeType
 from abc import ABC, abstractmethod
 from rascal_context import RascalContext

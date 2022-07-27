@@ -76,13 +76,20 @@ class RascalPass(langkit.passes.AbstractPass):
                     assert field.type.is_ast_node
                     constructor.add_field(field)
                 rascal_types.add_constructor(n, constructor)
+            
+            for p in n.get_inheritance_chain():
+                if p.public_type.api_name.lower == "basic_decl":
+                    RascalContext.m3_annotation["Decl"].append(n)
+                    RascalContext.m3_annotation["Containment"].append(n)
+                if p.public_type.api_name.lower == "name":
+                    RascalContext.m3_annotation["Use"].append(n)
+
 
         rascal_types.rename_fields_redeclaration()
         output_dir = os.path.dirname(__file__) + "/../main/rascal/lang/ada/"
         with open(RascalPass.templates_dir + "rascal_ast.mako") as f:
             templateStr = f.read()
         tmp = Template(templateStr)
-
         with open(output_dir + 'AST.rsc', 'w') as f:
             f.write(tmp.render(types=rascal_types, RascalContext=RascalContext))
 
