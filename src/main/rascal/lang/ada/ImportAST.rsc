@@ -22,6 +22,8 @@ import util::UUID;
 import util::Math;
 import util::SystemAPI;
 import Exception;
+import analysis::m3::Core;
+import IO;
 
 @doc{
 .Synopsis
@@ -43,7 +45,84 @@ Entry_Point importAdaAST(loc file) {
 
 @doc{
 .Synopsis
+Import an Ada Project using Libadalang.
+Make sure that the environment variable TMP is set.
+}
+map[loc,Entry_Point] importAdaProject(loc file) {
+    str out_file = getSystemEnvironment()["TMP"] + "/out" + toString(uuidi()) + ".txt";
+    loc out = |file:///| + out_file;
+    importAdaProject(file, out);
+    try {
+        return readTextValueFile(#map[loc,Entry_Point], out);
+    }
+    catch IO(msg): {
+        str m = msg + " while parsing " + out.path;
+        throw IO(m);
+    }
+}
+
+
+
+@doc{
+.Synopsis
+Creare M3 model
+}
+M3 Create_M3_Model (Entry_Point E, loc file) {
+    M3 result = m3(file);
+    visit(E) {
+        case Ada_Node n: {
+            if (n@decl? && n@src?) {
+                if (loc decl := n@decl && loc src := n@src) {
+                    result.declarations  += {<decl,src>};
+                }      
+                else if (list[loc] decls := n@decl && loc src := n@src) {
+                    for (loc decl <- decls)
+                        result.declarations  += {<decl,src>};
+                }
+            }            
+            
+            if (n@use? && n@src?) {
+                if (loc use := n@use && loc src := n@src) {
+                    result.uses += {<src,use>};
+                }      
+            }
+
+            if (n@decl? && n@containment?) {
+                if (loc decl := n@decl && loc containment := n@containment) {
+                    result.containment += {<containment,decl>};
+                }      
+                else if (list[loc] decls := n@decl && loc containment := n@containment) {
+                    for (loc decl <- decls)
+                        result.containment += {<containment,decl>};
+                }
+            }     
+        }
+    }
+    return result;
+}
+
+@doc{
+.Synopsis
+Creare M3 model
+}
+M3 Create_M3_Model (map[loc,Entry_Point] E, loc project) {
+    set[M3] Models = {};
+    for(file <- E) {
+        Models += Create_M3_Model (E[file], file);
+    }
+    return composeM3(project, Models);
+}
+
+@doc{
+.Synopsis
 Parse an Ada file with Libadalang and print the rascal ast into a file.
 }
 @javaClass{lang.ada.ImportAst}
-public java void importAdaAst(loc ada, loc out);
+public java void importAdaAst(loc adaFile, loc out);
+
+@doc{
+.Synopsis
+Parse an Ada project with Libadalang and print the rascal ast into a file.
+}
+@javaClass{lang.ada.ImportAst}
+public java void importAdaProject(loc adaProject, loc out);

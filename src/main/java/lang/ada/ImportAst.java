@@ -37,6 +37,23 @@ public class ImportAst {
         }
     }
 
+    public void importAdaProject(ISourceLocation adaProjectFile, ISourceLocation outFile) throws AdaException {
+        String adaFileName, outFileName;
+        try {
+            adaFileName = locToString(URIResolverRegistry.getInstance().logicalToPhysical(adaProjectFile));
+            outFileName = locToString(URIResolverRegistry.getInstance().logicalToPhysical(outFile));
+        } 
+        catch (IOException e) {
+            throw RuntimeExceptionFactory.io(e.getMessage());
+        }
+        try {
+            this._importAdaProject(adaFileName, outFileName);
+        }
+        catch (AdaException e) {
+            throw RuntimeExceptionFactory.javaException(e, null, null);
+        }
+    }
+
     private String locToString(ISourceLocation l) {
         if (!"file".equals(l.getScheme())) {
             throw RuntimeExceptionFactory.illegalArgument(l,
@@ -48,4 +65,6 @@ public class ImportAst {
     }
 
     private native void _importAdaAst(String adaFileName, String outFileName) throws AdaException;
+
+    private native void _importAdaProject(String adaFileName, String outFileName) throws AdaException;
 }

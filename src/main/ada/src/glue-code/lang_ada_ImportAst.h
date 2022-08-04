@@ -15,6 +15,14 @@ extern "C" {
 JNIEXPORT void JNICALL Java_lang_ada_ImportAst__1importAdaAst
   (JNIEnv *, jobject, jstring, jstring);
 
+/*
+ * Class:     lang_ada_ImportAst
+ * Method:    _importAdaProject
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_lang_ada_ImportAst__1importAdaProject
+  (JNIEnv *, jobject, jstring, jstring);
+
 #ifdef __cplusplus
 }
 #endif

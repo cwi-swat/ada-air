@@ -1,12 +1,7 @@
-with Interfaces.C.Strings;
 package Export.AST is
    
-   function Ada_Func_Wrapper (ada_file : Interfaces.C.Strings.Chars_Ptr;
-                              out_file : Interfaces.C.Strings.chars_Ptr) 
-                            return Interfaces.C.Strings.chars_Ptr
-     with
-       Export        => True,
-       Convention    => C,
-       External_Name => "Ada_Func_Wrapper";
+   procedure Export_File (File_Name : String; Out_File_Name : String);
+   
+   procedure Export_Project (Project_File_Name : String; Out_File_Name : String);
  
 end Export.Ast;

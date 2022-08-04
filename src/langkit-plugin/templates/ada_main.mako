@@ -21,11 +21,16 @@ with Ada.Strings.Wide_Wide_Unbounded.Wide_Wide_Text_IO;
 with Strings_Utils;
 with Export.Context;
 with Ada.Wide_Wide_Characters.Handling;
-with Ada.Exceptions;
 with M3.Analysis;
 % if debug:
 with Export.Debug;
 % endif
+with Libadalang.Helpers;
+with GNATCOLL.Projects;
+with M3.URI_Utils;
+with Ada.Strings.Unbounded;
+with Ada.Characters.Conversions;
+with Libadalang.Project_Provider;
 
 package body Export.Ast is
    package LAL renames Libadalang.Analysis;
@@ -275,7 +280,66 @@ package body Export.Ast is
       end if;
    end Export_Ast_To_Rascal;
 
-   procedure Export (File_Name : String; Out_File_Name : String) is
+
+   procedure Export_Project (Project_File_Name : String; Out_File_Name : String) is
+      Project : GNATCOLL.Projects.Project_Tree_Access;
+      Env     : GNATCOLL.Projects.Project_Environment_Access;
+      Units    : Libadalang.Helpers.String_Vectors.Vector;
+      F       : aliased Ada.Wide_Wide_Text_IO.File_Type;
+      First   : Boolean := True; 
+   begin
+      Libadalang.Helpers.Load_Project (Project_File => Project_File_Name, Project => Project, Env => Env);
+      declare
+         Unit_Provider : constant LAL.Unit_Provider_Reference := Libadalang.Project_Provider.Create_Project_Unit_Provider (Project, Project.Root_Project, Env);
+         Context : constant LAL.Analysis_Context := LAL.Create_Context (Unit_Provider => Unit_Provider); 
+      begin
+         Libadalang.Helpers.List_Sources_From_Project (Project.all, False, Units);
+         % if debug:
+         Constructors_Used := Debug.Load_Constructors_Used;
+         % endif
+         Ada.Wide_Wide_Text_IO.Create (F, Ada.Wide_Wide_Text_IO.Out_File, Out_File_Name);
+         Ada.Wide_Wide_Text_IO.Put (F, "(");
+         for Unit_Name of Units loop
+            declare
+               Unit : constant LAL.Analysis_Unit := LAL.Get_From_File (Context => Context, FileName => Ada.Strings.Unbounded.To_String (Unit_Name));
+            begin
+               if not First then
+                  Ada.Wide_Wide_Text_IO.Put (F,",");
+               end if;
+               First := False;
+            
+               if Unit.Has_Diagnostics then
+                  for D of Unit.Diagnostics loop
+                     Ada.Text_IO.Put_Line (Ada.Text_IO.Standard_Error, Unit.Format_GNU_Diagnostic (D));
+                     Ada.Text_IO.Flush (Ada.Text_IO.Standard_Error);
+                  end loop;
+               else
+              
+                  Ada.Wide_Wide_Text_IO.Put (F,M3.URI_Utils.Create_URI ("file",  Strings_Utils.Replace
+                                             (Ada.Characters.Conversions.To_Wide_Wide_String
+                                                (Unit.Get_Filename),
+                                                "\", "/"))  & ":");
+                  Export_Ast_To_Rascal (Print_Context => (File => F'Unchecked_Access,
+                                                          Indent => 0),
+                                        Type_Context => (N => Unit.Root,
+                                                         Is_Optional => False,
+                                                         Need_Chained_Constructor => False));
+              
+              
+               end if;
+            end;
+         end loop;
+         % if debug:
+         Debug.Save_Constructors_Used (Constructors_Used);
+         % endif
+         Ada.Wide_Wide_Text_IO.Put (F, ")");
+         Ada.Wide_Wide_Text_IO.Close (F);
+      end;
+   end Export_Project;
+
+
+   
+   procedure Export_File (File_Name : String; Out_File_Name : String) is
       Context : constant LAL.Analysis_Context := LAL.Create_Context;
       Unit    : constant LAL.Analysis_Unit := Context.Get_From_File (File_Name);
       F       : aliased Ada.Wide_Wide_Text_IO.File_Type;
@@ -300,18 +364,7 @@ package body Export.Ast is
          Debug.Save_Constructors_Used (Constructors_Used);
          % endif
       end if;
-   end Export;
+   end Export_File;
 
-
-   function Ada_Func_Wrapper (ada_file : Interfaces.C.Strings.Chars_Ptr;
-                              out_file : Interfaces.C.Strings.Chars_Ptr) 
-                              return Interfaces.C.Strings.Chars_Ptr is
-   begin
-      Export (Interfaces.C.Strings.Value (ada_file), Interfaces.C.Strings.Value (out_file));
-      return Interfaces.C.Strings.Null_Ptr;
-      exception
-         when E : others =>
-            return Interfaces.C.Strings.New_String (Ada.Exceptions.Exception_Name (E) & " " & Ada.Exceptions.Exception_Message (E));
-   end Ada_Func_Wrapper;
 
 end Export.Ast;
