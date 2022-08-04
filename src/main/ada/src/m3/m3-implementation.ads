@@ -9,7 +9,8 @@ private package M3.Implementation is
        Libadalang.Common.Ada_Decl_Block
        | Libadalang.Common.Ada_For_Loop_Stmt
        | Libadalang.Common.Ada_Exception_Handler
-       | Libadalang.Common.Ada_Extended_Return_Stmt;
+       | Libadalang.Common.Ada_Extended_Return_Stmt
+       |Libadalang.Common.Ada_Named_Stmt;
 
    
    subtype Signature_Kind_Type is Libadalang.Common.Ada_Basic_Decl 
@@ -23,6 +24,11 @@ private package M3.Implementation is
        | Libadalang.Common.Ada_Expr_Function
        | Libadalang.Common.Ada_Entry_Decl;
    
+   
+   subtype Skipped_Kind_Type is Libadalang.Common.Ada_Basic_Decl
+     with Static_Predicate => Skipped_Kind_Type in
+       Libadalang.Common.Ada_Generic_Package_Internal
+         | Libadalang.Common.Ada_Generic_Subp_Internal;
    --subtype Instantiation_Signature_Kind_Type is Libadalang.Common.Ada_Basic_Decl 
    --  with Static_Predicate => Subprogram_Kind_Type in
 
