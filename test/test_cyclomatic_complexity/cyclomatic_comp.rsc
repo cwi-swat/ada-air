@@ -35,12 +35,14 @@ void compute_cyclomatic_complexity(Base_Formal_Param_Holder Subp_Spec, Statement
             c += 1;
         case while_loop_stmt(_,_,_):
             c += 1;
-        case f: if_stmt(_,_, alt, els):
-            c += 1 + size(alt) + size(els);
+        case if_stmt(_,_, alt, _):
+            c += 1 + size(alt);
         case case_stmt(_,_):
             c += 1;
         case case_stmt_alternative(_,_):
             c += 1;
+        case exception_handler(_,_,_):
+            c+= 1;
     }
 
     str fun_name = head(Subp_Spec.F_Subp_Name).F_Name.content;
