@@ -19,6 +19,8 @@ extend analysis::m3::AST;
 alias Ada_Node = node;
 alias Maybe[&T] = list[&T];
 
+public Ada_Node Null_Ada_Node = "null"();
+
 data Entry_Point = Compilation_Units_Kind (list[Compilation_Unit] As_Compilation_Units)
 | Statements_Kind (list[Statement] As_Statements);
 
