@@ -10,21 +10,17 @@ It uses the [Libadalang](https://github.com/AdaCore/libadalang) library to creat
 ### Dependencies
 
 - [Python >=3.10](https://www.python.org/)
-- [Libadalang](https://github.com/AdaCore/libadalang)
-- [Langkit](https://github.com/AdaCore/langkit)
+- [Libadalang (automatically installed)](https://github.com/AdaCore/libadalang)
+- [Langkit (automatically installed)](https://github.com/AdaCore/langkit)
 - [alire](https://github.com/alire-project/alire)
 - [maven](https://maven.apache.org/)
+- [Rascal Command line REPL](https://www.rascal-mpl.org/start/)
+- JDK 11
 
-### Generating source code
+### Building
 
-Be careful to use the Libadalang and Langkit branch mentioned in the [alire toml file](https://github.com/cwi-swat/ada-air/blob/main/src/main/ada/alire.toml).
+Clone this repository: `git clone --recurse-submodules https://github.com/cwi-swat/ada-air.git`
 
-First install Langkit with the following command: `pip install .`
+Then run the install script.
 
-Then add the [Langkit plugin directory](./src/langkit-plugin/) into your `PYTHONPATH` and generate Libadalang source code with this plugin: `./manage.py generate --plugin-pass=rascal_plugin.RascalPass`
-
-You can now compile the generated Ada library in [src/main/ada](https://github.com/cwi-swat/ada-air/tree/main/src/main/ada) with alire: `alr build`
-
-Last step is to compile the Java classes using maven with: `mvn compile` 
-
-To ease the use of this new rascal module, I invite you to add the directory containing the Ada library into your PATH (windows)/LD_LIBRARY_PATH (linux).
+To ease the use of this new rascal module, I invite you to add the directory containing the compiled Ada library into your PATH (windows)/LD_LIBRARY_PATH (linux).
