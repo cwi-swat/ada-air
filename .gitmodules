@@ -1,0 +1,4 @@
+[submodule "Libadalang"]
+	path = Libadalang
+	url = https://github.com/AdaCore/Libadalang.git
+	branch = 22.0
