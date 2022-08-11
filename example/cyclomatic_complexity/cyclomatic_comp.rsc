@@ -35,49 +35,46 @@ str Get_Name (Ada_Node N) {
     }
 }
 
-lrel[str, int] compute_cyclomatic_complexity(Base_Formal_Param_Holder Subp_Spec, Statement Stmts) {
-    int c = 1;
-    visit(Stmts)
-    {
-        case for_loop_stmt(_,_,_):
-            c += 1;
-        case loop_stmt(_,_,_):
-            c += 1;
-        case while_loop_stmt(_,_,_):
-            c += 1;
-        case if_stmt(_,_, alt, els):
-            c += 1 + size(alt) + size(els);
-        case case_stmt(_,_):
-            c += 1;
-        case case_stmt_alternative(_,_):
-            c += 1;
-        case exception_handler(_,_,_):
-            c+= 1;
+int computeCC(value N) {
+    int c = 0;
+    visit(N) {
+        case s:exception_handler(_,_,_):  c -= computeCC(getChildren(s)); //don't recurse 
+        case s:subp_body(_,_,_,_,_,_):   c -= computeCC(getChildren(s)); //don't recurse
+        case s:for_loop_stmt(_,_,_):   c += 1;
+        case s:while_loop_stmt(_,_,_):  c += 1 ;
+        case s:if_stmt(_,_, alternatives, _):  c += 1 + size(alternatives);
+        case s:case_stmt(_, alternatives): c += size (alternatives) - 1 ;
+        case s:if_expr(_,_, alternatives, _):  c += 1 + size (alternatives);
+        case s:case_expr(_, alternatives):  c += size (alternatives);
+        case s:exit_stmt(_,cond): c+= size (cond);
+        case s:and_then(_,_):  c += 1;
+        case s:or_else(_,_): c += 1;
+        case quantified_expr(_, _, _): c += 2;
+        case select_stmt(Alts, Elses , Abort): {
+            c += size(Alts) - 1;
+            c += if(isEpmty(Elses)) 0; else 1;
+            c += if(isEpmty(Abort)) 0; else 1;            
+        }
     }
-
-    //println (Subp_Spec.F_Subp_Name);
-    str fun_name = Get_Name (head(Subp_Spec.F_Subp_Name).F_Name);
-    //println("<Subp_Spec.src> <fun_name> : <c>");
-    return [<"<Subp_Spec.src> <fun_name>", c>]; 
+    return c;
 }
 
-
 void main(list[str] args=[]) {
-    list[Entry_Point] Entry_Point_List = [];
     loc project = |file:///| + args[0];
     map[loc,Entry_Point] Units = importAdaProject (project);
     lrel[str name, int c] complexity = [];
     for(file <- Units)        
-        for(/subp_body(_, Subp_Spec, _, _, Stmts, _) <- Units[file]) 
-            complexity += compute_cyclomatic_complexity(Subp_Spec, Stmts);
+        for(/subp_body(_, Subp_Spec, _, _, Stmts, _) <- Units[file]) {
+                str fun_name = Get_Name (head(Subp_Spec.F_Subp_Name).F_Name);
+                complexity += [<"<Subp_Spec.src> <fun_name>", compute(Stmts) + 1 >]; 
+        }
 
     complexity = sort(complexity, bool (<str _, int a>, <str _, int b>) { return a > b; });
-    int limit = 10;
+    int limit = 5;
     int c = 1;
     for (subp <- complexity) {
-        if (c == limit) break;
         println ("<subp.name> : <subp.c>");
+        if (c == limit) break;
         c+=1;
     } 
 }
-
