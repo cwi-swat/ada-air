@@ -2,13 +2,11 @@ with Ada.Strings.Wide_Wide_Unbounded;
 with Ada.Strings.Wide_Wide_Fixed;
 with Strings_Utils;
 with Ada.Characters.Conversions;
-with Libadalang.Iterators;
 
 package body M3.Implementation is
    
    package LAL renames Libadalang.Analysis;
    package LALCO renames Libadalang.Common;
-   package LALIT renames Libadalang.Iterators;
    
    ---------------------------------
    -- Rascal_Fully_Qualified_Name --
@@ -40,7 +38,7 @@ package body M3.Implementation is
       end Already_In;
    begin
       If N.Is_Null then
-         raise Constraint_Error with "AH";
+         raise M3_Error with "Can't compute the fully qualified name of a null node";
       end if;
       declare
          
@@ -72,7 +70,7 @@ package body M3.Implementation is
                   end if;
                end;
 
-            elsif	P.Kind in Signature_Kind_Type then
+            elsif P.Kind in Signature_Kind_Type then
                declare
                   Parent_Name : constant Wide_Wide_String := Strings_Utils.Replace (Get_Subprogram_Signature(P.As_Basic_Decl), ".", "/");
                begin
@@ -80,21 +78,27 @@ package body M3.Implementation is
                      Insert (Name, 1, "/" & Parent_Name);
                   end if;
                end;
-            elsif P.Kind in LALCO.Ada_Basic_Decl and not (N.Parent.Kind = LALCO.Ada_Named_Stmt_Decl) and not (N.Kind = LALCO.Ada_Named_Stmt_Decl) then
+            elsif P.Kind in LALCO.Ada_Basic_Decl and not (P.Kind = LALCO.Ada_Anonymous_Type_Decl) 
+              and not (N.Parent.Kind = LALCO.Ada_Named_Stmt_Decl) and not (N.Kind = LALCO.Ada_Named_Stmt_Decl) then -- N or P here?
                declare
-                  Parent_Name : constant Wide_Wide_String := Strings_Utils.Replace (P.As_Basic_Decl.P_Defining_Name.Text, ".", "/");
+                  Def_Name : constant LAL.Defining_Name := P.As_Basic_Decl.P_Defining_Name;
                begin
-                  if not Already_In (Name, Parent_Name) then
-                     Insert (Name, 1, "/" & Parent_Name);
+                  if not Def_Name.Is_Null then
+                     declare
+                        Parent_Name : constant Wide_Wide_String := Strings_Utils.Replace (Def_Name.Text, ".", "/");
+                     begin
+                        if not Already_In (Name, Parent_Name) then
+                           Insert (Name, 1, "/" & Parent_Name);
+                        end if;
+                     end;
+                  else
+                     raise M3_Error with "not Named Declaration " & P.Kind_Name;
                   end if;
                end;
             end if;         
          end loop;
          return To_Wide_Wide_String (Name);
       end;
-   exception
-      when others =>
-         raise Constraint_Error with "AHAH";
    end Rascal_Fully_Qualified_Name;
    
   
@@ -318,9 +322,6 @@ package body M3.Implementation is
       end case;
 
       return To_Wide_Wide_String (Res);
-   exception
-      when others =>
-         raise Constraint_Error with "OH";
    end Get_Rascal_Logical_Location;
 
    ------------------------------
@@ -332,29 +333,26 @@ package body M3.Implementation is
    is
       use Ada.Strings.Wide_Wide_Unbounded;
       Result : Unbounded_Wide_Wide_String;
-      Spec  : constant LAL.Subp_Spec := LALIT.Find_First (N, LALIT.Kind_IS (LALCO.Ada_Subp_Spec)).As_Subp_Spec;
+      Spec  : constant LAL.Base_Subp_Spec := N.P_Subp_Spec_Or_Null (Follow_Generic => True);
    begin
       if not Spec.Is_Null then 
          
          Set_Unbounded_Wide_Wide_String (Result, N.P_Defining_Name.Text);
          declare
-            use LALIT;
-            P : constant LAL.Params := Find_First (Spec, Kind_Is (LALCO.Ada_Params)).As_Params;
+            P : constant LAL.Param_Spec_Array := Spec.P_Params;
          begin
-            if not P.Is_Null then
+            if P'Length /= 0 then
                Append (Result, Get_Params_Signature (P));
             else
                Append (Result, "()");
             end if;
          end;
-
-         case Spec.F_Subp_Kind.Kind is
-            when LALCO.Ada_Subp_Kind_Function =>
-               Append (Result, ":" & Get_Type_Signature (Spec.F_Subp_Returns));
-            when others => null;
-         end case;
+         
+         if not Spec.P_Returns.Is_Null then
+            Append (Result, ":" & Get_Type_Signature (Spec.P_Returns));
+         end if;
       else
-         raise Program_Error with N.Kind_Name;
+         raise M3_Error with "Can't compute M3 signature of a unamed subprogram";
       end if;
       return To_Wide_Wide_String (Result);
    end Get_Subprogram_Signature;
@@ -364,13 +362,13 @@ package body M3.Implementation is
    -- Get_Params_Signature --
    --------------------------
    
-   function Get_Params_Signature (N : Libadalang.Analysis.Params'Class) return Wide_Wide_String
+   function Get_Params_Signature (Params : LAL.Param_Spec_Array) return Wide_Wide_String
    is
       use Ada.Strings.Wide_Wide_Unbounded;
       Result : Unbounded_Wide_Wide_String;
       Is_Empty : Boolean := True;
    begin
-      for Param of N.F_Params loop
+      for Param of Params loop
          if Is_Empty then
             Append (Result, "(");
          else
@@ -422,7 +420,7 @@ package body M3.Implementation is
                            Append (Result, "protected ");
                         end if;
                         if not Spec.F_Subp_Params.Is_Null then
-                           Append (Result, Get_Params_Signature (Spec.F_Subp_Params));
+                           Append (Result, Get_Params_Signature (Spec.P_Params));
                         else
                            Append (Result, "()");
                         end if;

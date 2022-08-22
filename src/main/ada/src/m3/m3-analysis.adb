@@ -1,5 +1,3 @@
---with Ada.Exceptions;
---with Ada.Characters.Conversions;
 with M3.Implementation;
 with Libadalang.Common;
 
@@ -28,54 +26,56 @@ package body M3.Analysis is
    function Get_Use_Annotation (N : LAL.Name'Class) return Ada.Strings.Wide_Wide_Unbounded.Unbounded_Wide_Wide_String is
       use Ada.Strings.Wide_Wide_Unbounded;
    begin
-      -- Handling only one once End_Name names:
-      -- EndName      <- Treated
-      -- |f_name:
-      -- |  Id: fac   <- Passed
-      -- TODO use a kind subtype with skipped node kind
-      if N.Parent.Kind in LALCO.Ada_End_Name or N.Kind in LALCO.Ada_Attribute_Ref or N.Kind in LALCO.Ada_Call_Expr or N.Parent.Kind in LALCO.Ada_Dotted_Name then
-        return Null_Unbounded_Wide_Wide_String; 
-      end if;
-      case N.Kind is
-         when LALCO.Ada_End_Name 
-            | LALCO.Ada_Num_Literal
-            | LALCO.Ada_Op =>
+      case LALCO.Ada_Name'(N.Kind) is
+         when LALCO.Ada_Qual_Expr -- F_Prefix will be handled
+            | LALCO.Ada_Explicit_Deref  -- F_Prefix will be handled
+            | LALCO.Ada_End_Name  -- F_Name Should be removed
+            | LALCO.Ada_Discrete_Subtype_Name  -- F_Name from subtype indication will be handled
+            | LALCO.Ada_Defining_Name  -- F_Name will be handled
+            | LALCO.Ada_Call_Expr  -- F_Name will be handled
+            | LALCO.Ada_Attribute_Ref -- can't reference a declaration
+            | LALCO.Ada_Update_Attribute_Ref -- can't reference a declaration
+            | LALCO.Ada_Num_Literal -- can't reference a declaration
+            | LALCO.Ada_Null_Literal -- can't reference a declaration
+            | LALCO.Ada_Char_Literal -- can't reference a declaration
+            | LALCO.Ada_Op => -- can't reference a declaration
             return Null_Unbounded_Wide_Wide_String;
-              
-         when others =>
             
+         when LALCO.Ada_Identifier
+            | LALCO.Ada_String_Literal -- can reference function like "=", "+" etc..
+            | LALCO.Ada_Dotted_Name
+            | LALCO.Ada_Target_Name =>
             declare
-               Decl : Unbounded_Wide_Wide_String := Null_Unbounded_Wide_Wide_String;
-               Decl_Node : constant LAL.Basic_Decl := N.P_Referenced_Decl (False); -- Need to use the faillsafe function
+               Ref_Decl : constant LAL.Refd_Decl := N.P_Failsafe_Referenced_Decl;
             begin
-               if not Decl_Node.Is_Null then
-                  declare
-                     Name : constant LAL.Defining_Name := Decl_Node.P_Defining_Name;                     
-                     S : constant Wide_Wide_String := (if Name.Is_Null then "" else Implementation.Get_Rascal_Logical_Location (Decl_Node, Name.F_Name));
-                  begin
-                     if S'Length > 0 then
-                        Decl := To_Unbounded_Wide_Wide_String (",use=" & S);
-                     else
-                        null;
-                        --Decl := To_Unbounded_Wide_Wide_String (",use=""Returned Empty for " & N.Kind'Wide_Wide_Image & """");
-                     end if;
-                  end;
-               else
-                  null; -- ada+unknow ?
-                  --Decl := To_Unbounded_Wide_Wide_String (",use=""P_Referenced_Decl Empty for " & N.Kind'Wide_Wide_Image & """");
-               end if;
-               return Decl;
-            exception
-               when others => raise Constraint_Error with "OHOHOHOHOH";
+               case LAL.Kind (Ref_Decl) is
+                  when LALCO.Precise => 
+                     declare
+                        Decl_Node : constant LAL.Basic_Decl'Class := LAL.Decl (Ref_Decl);
+                        Def_Name : constant LAL.Defining_Name := Decl_Node.P_Defining_Name;
+                     begin
+                        if not Def_Name.Is_Null and then not Def_Name.F_Name.Is_Null  then
+                           declare
+                              S : constant Wide_Wide_String := Implementation.Get_Rascal_Logical_Location (Decl_Node, Def_Name.F_Name);
+                           begin
+                              if S'Length > 0 then
+                                 return To_Unbounded_Wide_Wide_String (",use=" & S);
+                              else
+                                 raise M3_Error with "Referenced location null";
+                              end if;
+                           end;
+                        else
+                           raise M3_Error with "Def_Name null";
+                        end if;
+                     end;
+                     
+                  when LALCO.Noref
+                     | LALCO.Imprecise
+                     | LALCO.Error => 
+                     return Null_Unbounded_Wide_Wide_String;
+               end case;
             end;
       end case;
-   exception
-      when others =>         
-         N.Parent.Print;
-         --raise;
-         raise Constraint_Error with "OHOHOH";
-         --return Null_Unbounded_Wide_Wide_String;
-         --return To_Unbounded_Wide_Wide_String (",use=""Failed " & N.Kind'Wide_Wide_Image & " " & Ada.Characters.Conversions.To_Wide_Wide_String (Ada.Exceptions.Exception_Name (E) & " " & Ada.Exceptions.Exception_Message (E) & """"));
    end Get_Use_Annotation;
    
    function Get_Decl_Annotation (N : LAL.Basic_Decl'Class) return Ada.Strings.Wide_Wide_Unbounded.Unbounded_Wide_Wide_String is
@@ -89,12 +89,6 @@ package body M3.Analysis is
          end if;
       end;
       return Null_Unbounded_Wide_Wide_String;
-   exception
-      when others =>
-         N.Print;
-         raise;
-         --return Null_Unbounded_Wide_Wide_String;
-         --return To_Unbounded_Wide_Wide_String (",decl=""Failed " & N.Kind'Wide_Wide_Image & " " & Ada.Characters.Conversions.To_Wide_Wide_String (Ada.Exceptions.Exception_Name (E) & " " & Ada.Exceptions.Exception_Message (E) & """"));
    end Get_Decl_Annotation;
    
    
@@ -102,10 +96,12 @@ package body M3.Analysis is
       use Ada.Strings.Wide_Wide_Unbounded;
    begin
       declare
+         -- TODO doesn't work for separate body
+         -- TODO add tests
          Parent_Node : constant LAL.Basic_Decl := N.P_Parent_Basic_Decl;
          use type LAL.Analysis_Unit;
       begin
-         if not Parent_Node.Is_Null and not (Parent_Node.Unit = Parent_Node.P_Standard_Unit) then -- removing contained in Standard Package
+         if not Parent_Node.Is_Null and then not (Parent_Node.Unit = Parent_Node.P_Standard_Unit) then -- removing contained in Standard Package
             declare
                S : constant Wide_Wide_String := Implementation.Get_Rascal_Logical_Location (Parent_Node);
             begin
@@ -116,11 +112,6 @@ package body M3.Analysis is
          end if;
          return Null_Unbounded_Wide_Wide_String;
       end;
-   exception
-      when others =>
-         N.Print;
-         raise;
-         --return Null_Unbounded_Wide_Wide_String;
    end Get_Containment_Annotation;
 
 end M3.Analysis;

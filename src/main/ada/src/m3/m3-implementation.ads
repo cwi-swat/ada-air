@@ -45,7 +45,7 @@ private
    
    function Get_Subprogram_Signature (N : Libadalang.Analysis.Basic_Decl'Class) return Wide_Wide_String;
    
-   function Get_Params_Signature (N : Libadalang.Analysis.Params'Class) return Wide_Wide_String;
+   function Get_Params_Signature (Params : Libadalang.Analysis.Param_Spec_Array) return Wide_Wide_String;
    
    function Get_Type_Signature (N : Libadalang.Analysis.Type_Expr'Class) return Wide_Wide_String;
    
