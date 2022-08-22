@@ -38,17 +38,17 @@ str Get_Name (Ada_Node N) {
 int computeCC(value N) {
     int c = 0;
     visit(N) {
-        case s:exception_handler(_,_,_):  c -= computeCC(getChildren(s)); //don't recurse 
-        case s:subp_body(_,_,_,_,_,_):   c -= computeCC(getChildren(s)); //don't recurse
-        case s:for_loop_stmt(_,_,_):   c += 1;
-        case s:while_loop_stmt(_,_,_):  c += 1 ;
-        case s:if_stmt(_,_, alternatives, _):  c += 1 + size(alternatives);
+        case s:exception_handler(_, _, _):  c -= computeCC(getChildren(s)); //don't recurse 
+        case s:subp_body(_, _, _, _, _, _):   c -= computeCC(getChildren(s)); //don't recurse
+        case s:for_loop_stmt(_, _, _):   c += 1;
+        case s:while_loop_stmt(_, _, _):  c += 1 ;
+        case s:if_stmt(_, _, alternatives, _):  c += 1 + size(alternatives);
         case s:case_stmt(_, alternatives): c += size (alternatives) - 1 ;
-        case s:if_expr(_,_, alternatives, _):  c += 1 + size (alternatives);
-        case s:case_expr(_, alternatives):  c += size (alternatives);
-        case s:exit_stmt(_,cond): c+= size (cond);
-        case s:and_then(_,_):  c += 1;
-        case s:or_else(_,_): c += 1;
+        case s:if_expr(_, _, alternatives, _):  c += 1 + size (alternatives);
+        case s:case_expr(_, alternatives):  c += size (alternatives) - 1;
+        case s:exit_stmt(_, cond): c += size (cond);
+        case s:and_then(_, _):  c += 1;
+        case s:or_else(_, _): c += 1;
         case quantified_expr(_, _, _): c += 2;
         case select_stmt(Alts, Elses , Abort): {
             c += size(Alts) - 1;
@@ -75,6 +75,6 @@ void main(list[str] args=[]) {
     for (subp <- complexity) {
         println ("<subp.name> : <subp.c>");
         if (c == limit) break;
-        c+=1;
+        c += 1;
     } 
 }
