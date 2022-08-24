@@ -16,9 +16,12 @@ package body M3.URI_Utils is
    is
       Offset : constant Positive := LALCO.Raw_Data (N.Token_Start).Source_First;
       Length : constant Natural :=LALCO.Raw_Data (N.Token_End).Source_Last -
-        LALCO.Raw_Data (N.Token_Start).Source_First + 1;
-      Sloc   : constant Langkit_Support.Slocs.Source_Location_Range := N.Sloc_Range;
+        Offset + 1;
+      Sloc   : Langkit_Support.Slocs.Source_Location_Range := N.Sloc_Range;
+      use type Langkit_Support.Slocs.Column_Number;
    begin
+      Sloc.Start_Column := Sloc.Start_Column - 1;
+      Sloc.End_Column := Sloc.End_Column - 1;
       return (Offset => Offset,
               Length => Length,
               Sloc => Sloc);
