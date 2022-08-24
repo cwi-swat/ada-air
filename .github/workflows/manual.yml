@@ -75,6 +75,8 @@ jobs:
 
     - name: installing alire
       uses: alire-project/setup-alire@v1
+      with:
+        toolchain: 'gnat_native=11.2.4 gprbuild'
 
 
 
