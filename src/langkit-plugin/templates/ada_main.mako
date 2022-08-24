@@ -346,6 +346,7 @@ package body Export.Ast is
                      Ada.Text_IO.Put_Line (Ada.Text_IO.Standard_Error, Unit.Format_GNU_Diagnostic (D));
                      Ada.Text_IO.Flush (Ada.Text_IO.Standard_Error);
                   end loop;
+                  raise Constraint_Error with Ada.Strings.Unbounded.To_String (Unit_Name) & " has diagnostics";
                else
               
                   Ada.Wide_Wide_Text_IO.Put (F,M3.URI_Utils.Create_URI ("file",  Strings_Utils.Replace
@@ -382,6 +383,7 @@ package body Export.Ast is
             Ada.Text_IO.Put_Line (Ada.Text_IO.Standard_Error, Unit.Format_GNU_Diagnostic (D));
             Ada.Text_IO.Flush (Ada.Text_IO.Standard_Error);
          end loop;
+         raise Constraint_Error with File_Name & " has diagnostics";
       else
          % if debug:
          Constructors_Used := Debug.Load_Constructors_Used;
