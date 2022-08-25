@@ -12,20 +12,8 @@ jobs:
       uses: actions/checkout@v3
       with:
         path: 'ada-air'
+        submodules: recursive
 
-    - name: cloning libadalang
-      uses: actions/checkout@v3
-      with:
-        repository: 'AdaCore/libadalang'
-        path: 'libadalang'
-        ref: '22.0'
-
-    - name: cloning langkit
-      uses: actions/checkout@v3
-      with:
-        repository: 'AdaCore/langkit'
-        path: 'langkit'
-        ref: '22.0'
 
     # only for tests
     - name: cloning aws
@@ -56,9 +44,6 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: installing langkit
-      run: pip install ./langkit/
-
     - name: installing java
       uses: actions/setup-java@v3
       with:
@@ -81,14 +66,8 @@ jobs:
 
 
     # generating source code and conpiling it
-    - name: running rascal plugin
-      run: cd ada-air; PYTHONPATH=$PWD/src/langkit-plugin/ ../libadalang/manage.py generate --plugin-pass=rascal_plugin.RascalPass
-
-    - name: compilling ada library
-      run: cd ada-air/src/main/ada; alr build
-
-    - name: compiling java sources
-      run: cd ada-air; mvn compile
+    - name: running install script
+      run: cd ada-air; bash install_unix.sh
 
 
 
