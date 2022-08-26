@@ -66,7 +66,7 @@ void main(list[str] args=[]) {
     for(file <- Units)        
         for(/subp_body(_, Subp_Spec, _, _, Stmts, _) <- Units[file]) {
                 str fun_name = Get_Name (head(Subp_Spec.F_Subp_Name).F_Name);
-                complexity += [<"<Subp_Spec.src> <fun_name>", compute(Stmts) + 1 >]; 
+                complexity += [<"<Subp_Spec.src> <fun_name>", computeCC(Stmts) + 1 >]; 
         }
 
     complexity = sort(complexity, bool (<str _, int a>, <str _, int b>) { return a > b; });
