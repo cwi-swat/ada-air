@@ -47,9 +47,9 @@ class RascalPass(langkit.passes.AbstractPass):
     templates_dir = os.path.dirname(__file__) + "/templates/"
     
     inlined_prefix_nodes = {"bin_op": "",  # (Key : Inlined nodes, Value : Prefix to use e.g. add, u_add, rel_add, mem_add)
-                            "un_op": "u_",
-                            "relation_op": "rel_",
-                            "membership_expr": "mem_"}
+                            "un_op": "un_",
+                            "relation_op": "relation_",
+                            "membership_expr": "membership_"}
 
     def __init__(self, debug = False):
         super().__init__("rascal plugin pass")
